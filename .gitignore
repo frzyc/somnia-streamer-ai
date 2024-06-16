@@ -1,0 +1,15 @@
+# venv
+.venv
+
+# dotenv
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python
+__pycache__
+
+
+# Chat backup
+chat_back.txt
