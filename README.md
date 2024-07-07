@@ -30,7 +30,24 @@ poetry install
 ## Update Bot context
 The [Bot context file](Somnia.txt) provides some context information for ChatGPT prompt, that should be personalized to each user.
 
-## Run the bot
+## System structure
+The system has been divided into 3 modules, so that modules are compartmentalized and can be hot-swapped at will. The modules will communicate using websockets, the ports are defined in the env files.
+It is recommended to run Somnia first.
+
+### Run Somnia
+Somnia module listens to requests on the websocket, and generates response using ChatGPT. Will also connect to OBS to show specific image and update text, as well as TTS the response.
 ```
-python main.py
+python somnia.py
+```
+
+### Run Voice-to-Text
+This module allows users to speak to somnia, or type in a prompt. This will be sent to the Somnia module via Websockets.
+```
+python vtt.py
+```
+
+### Run Twitch bot
+This module handles a lot of the Twitch stream interactions, listen to events, and dispatch prompts to Somnia via websocket.
+```
+python bot.py
 ```

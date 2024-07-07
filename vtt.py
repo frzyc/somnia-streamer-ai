@@ -4,6 +4,17 @@ from keyboard import call_later
 from rich import print
 from somnia import talk_to_somnia
 from globals import speechtotext_manager
+from dotenv import load_dotenv
+import os
+from websockets.sync.client import connect
+import json
+from util.msgUtil import toMsg
+
+# Just in case this file is loaded alone
+load_dotenv(dotenv_path=".env.local")
+
+SOCKET_PORT_SOMNIA = os.getenv("SOCKET_PORT_SOMNIA")
+websocket = connect(f"ws://localhost:{SOCKET_PORT_SOMNIA}")
 
 
 def mic_handler():
@@ -13,14 +24,15 @@ def mic_handler():
     if mic_result == "":
         print("[red]Did not receive any input from your microphone!")
         return
-    talk_to_somnia(mic_result)
+    websocket.send(toMsg(mic_result))
 
 
 def handle_text_input(skip_ai=False):
     text = input(f"[bold]Enter a question{'(skip ai)' if skip_ai else ''}:")
     if not text:
         return
-    talk_to_somnia(text, skip_ai)
+
+    websocket.send(toMsg(text, skip_ai))
 
 
 def main():
