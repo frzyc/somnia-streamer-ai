@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 import os
 from websockets.sync.client import connect
 from util.msgUtil import toMsg
-import json
 from rich import print
 import aiohttp
 import asyncio
+import pygame
 
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
@@ -31,6 +31,12 @@ except:
     )
 
 
+pygame.mixer.init()
+pipes = pygame.mixer.Sound("sounds/pipes.mp3")
+pipes.set_volume(0.3)  # This sound is loud AF
+ping = pygame.mixer.Sound("sounds/ping.mp3")
+
+
 class TwitchBot(commands.Bot):
     def __init__(self):
         # Initialise our Bot with our access token, prefix and a list of channels to join on boot...
@@ -40,9 +46,6 @@ class TwitchBot(commands.Bot):
             initial_channels=["frzyc"],
         )
         self.esclient = eventsub.EventSubWSClient(self)
-
-    async def sound_done(self):
-        print("Finished playing sound!")
 
     async def event_message(self, message):
         # Messages with echo set to True are messages sent by the bot...
@@ -94,6 +97,9 @@ class TwitchBot(commands.Bot):
             token=TWITCH_ACCESS_TOKEN,
             moderator=TWITCH_OWNER_ID,
         )
+        await self.esclient.subscribe_channel_subscription_messages(
+            broadcaster=TWITCH_OWNER_ID, token=TWITCH_ACCESS_TOKEN
+        )
 
     async def event_eventsub_notification_channel_reward_redeem(self, payload) -> None:
         data: eventsub.CustomRewardRedemptionAddUpdateData = payload.data
@@ -101,6 +107,12 @@ class TwitchBot(commands.Bot):
             data.reward.title == "Ask Somnia a question"
         ):  # a83203b1-7f30-4d82-abf9-a8262406adc8
             self.ask_somnia(data.user.name, data.input)
+        elif data.reward.title == "PIPES":
+            print("playing pipes")
+            pipes.play()
+        elif data.reward.title == "ping":
+            print("playing ping")
+            ping.play()
 
     async def event_eventsub_notification_stream_start(
         self, payload: eventsub.StreamOnlineData
@@ -181,6 +193,18 @@ class TwitchBot(commands.Bot):
     async def hello(self, ctx: commands.Context):
         # Send a hello back!
         await ctx.send(f"Hello {ctx.author.name}!")
+
+    @commands.command()
+    async def pipes(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        pipes.play()
+
+    @commands.command()
+    async def ping(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        ping.play()
 
     @commands.command()
     @commands.cooldown(1, 45, commands.Bucket.user)
