@@ -154,12 +154,20 @@ class OBSWebsocketsManager:
 
 if __name__ == "__main__":
     obswebsockets_manager = OBSWebsocketsManager()
-    text = "Computer science combines the study of computation and information processing fundamentals with their application in the world around us. Computer scientists build fast, reliable, scalable and secure software systems to organize and analyze information."
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia", True)
-    obswebsockets_manager.set_text("somnia says", text)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia says", True)
-    time.sleep(5)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia", False)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia says", False)
+    # text = "Computer science combines the study of computation and information processing fundamentals with their application in the world around us. Computer scientists build fast, reliable, scalable and secure software systems to organize and analyze information."
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia", True)
+    # obswebsockets_manager.set_text("somnia says", text)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia says", True)
+    # time.sleep(5)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia", False)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia says", False)
 
-#############################################
+    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos Time", True)
+    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos", True)
+    time.sleep(0.5)
+    obswebsockets_manager.set_source_visibility("Game/Desktop", "shaiaz", True)
+    time.sleep(5)
+    obswebsockets_manager.set_source_visibility("Game/Desktop", "shaiaz", False)
+    time.sleep(0.5)
+    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos Time", False)
+    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos", False)

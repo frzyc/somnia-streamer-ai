@@ -9,6 +9,7 @@ import os
 from util.msgUtil import fromMsg
 from websockets import ConnectionClosedOK
 import websockets
+from rich import print
 
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
