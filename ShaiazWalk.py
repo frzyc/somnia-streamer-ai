@@ -1,15 +1,17 @@
 import time
 from globals import getOBSWebsocketsManager
-import pygame
 
 
 def shaiazWalk():
+    laps = 0
     obswebsockets_manager = getOBSWebsocketsManager()
     # make sure the position alignment is at bottom center
-    SOURCE_SCENE_NAME = "Conditional Overlay Stuff"
-    SOURCE_NAME = "shiazwalk"
+    SOURCE_SCENE_NAME = "Game/Desktop"
+    SOURCE_SCENE_FOLDER = "shiazwalk"
+    SOURCE_GIF = "shiazwalkgif"
+    SOURCE_NAME_LABEL = "shiazwalklabel"
     transform = obswebsockets_manager.get_source_transform(
-        SOURCE_SCENE_NAME, SOURCE_NAME
+        SOURCE_SCENE_FOLDER, SOURCE_GIF
     )
     eleWidth = transform["width"]
     scalex = abs(transform["scaleX"])
@@ -23,19 +25,26 @@ def shaiazWalk():
     timeRate = 0.001
     while True:
         time.sleep(timeRate)
-        if x <= eleWidth:
+        if (x <= eleWidth / 2) and dx < 0:
             dx = 1
-        elif x > (SCREEN_WIDTH - eleWidth):
+            laps = laps + 1
+        elif (x > (SCREEN_WIDTH - eleWidth / 2)) and dx > 0:
             dx = -1
         x = x + dx * speed * timeRate
         y = y + dy * speed * timeRate
-
+        obswebsockets_manager.set_text(SOURCE_NAME_LABEL, f"Laps: {laps}")
         obswebsockets_manager.set_source_transform(
             SOURCE_SCENE_NAME,
-            SOURCE_NAME,
+            SOURCE_SCENE_FOLDER,
             {
                 "positionX": abs(x),
                 "positionY": y,
+            },
+        )
+        obswebsockets_manager.set_source_transform(
+            SOURCE_SCENE_FOLDER,
+            SOURCE_GIF,
+            {
                 "scaleX": dx * scalex,
             },
         )
