@@ -9,6 +9,7 @@ from rich import print
 import aiohttp
 import asyncio
 import pygame
+from globals import getOBSWebsocketsManager
 
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
@@ -19,6 +20,7 @@ TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
 TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET")
 TWITCH_OWNER_ID = os.getenv("TWITCH_OWNER_ID")
 SOCKET_PORT_SOMNIA = os.getenv("SOCKET_PORT_SOMNIA")
+obswebsockets_manager = getOBSWebsocketsManager()
 websocket = None
 try:
     websocket = connect(f"ws://localhost:{SOCKET_PORT_SOMNIA}")
@@ -35,6 +37,10 @@ pygame.mixer.init()
 pipes = pygame.mixer.Sound("sounds/pipes.mp3")
 pipes.set_volume(0.3)  # This sound is loud AF
 ping = pygame.mixer.Sound("sounds/ping.mp3")
+blind = pygame.mixer.Sound("sounds/im-legally-blind-made-with-Voicemod.mp3")
+sus = pygame.mixer.Sound("sounds/Among Us (Role Reveal) - Sound Effect (HD).mp3")
+laugh = pygame.mixer.Sound("sounds/sitcom-laughing-1.mp3")
+laugh.set_volume(0.3)
 
 
 class TwitchBot(commands.Bot):
@@ -97,22 +103,47 @@ class TwitchBot(commands.Bot):
             token=TWITCH_ACCESS_TOKEN,
             moderator=TWITCH_OWNER_ID,
         )
+        await self.esclient.subscribe_channel_subscriptions(
+            broadcaster=TWITCH_OWNER_ID, token=TWITCH_ACCESS_TOKEN
+        )
         await self.esclient.subscribe_channel_subscription_messages(
             broadcaster=TWITCH_OWNER_ID, token=TWITCH_ACCESS_TOKEN
         )
 
     async def event_eventsub_notification_channel_reward_redeem(self, payload) -> None:
         data: eventsub.CustomRewardRedemptionAddUpdateData = payload.data
-        if (
-            data.reward.title == "Ask Somnia a question"
-        ):  # a83203b1-7f30-4d82-abf9-a8262406adc8
-            self.ask_somnia(data.user.name, data.input)
-        elif data.reward.title == "PIPES":
-            print("playing pipes")
-            pipes.play()
-        elif data.reward.title == "ping":
-            print("playing ping")
-            ping.play()
+        match data.reward.title:
+            case "Ask Somnia a question":
+                self.ask_somnia(data.user.name, data.input)
+            case "PIPES":
+                print("playing pipes")
+                pipes.play()
+            case "ping":
+                print("playing ping")
+                ping.play()
+            case "blind":
+                print("playing blind")
+                blind.play()
+            case "amogus sus":
+                print("playing sus")
+                sus.play()
+            case "meme format":
+                print("playing meme format")
+                obswebsockets_manager.set_text("meme text", data.input)
+                obswebsockets_manager.set_scene("meme format")
+                obswebsockets_manager.set_filter_visibility(
+                    "Game/Desktop Clone", "Freeze", True
+                )
+                await asyncio.sleep(5)
+                obswebsockets_manager.set_scene("Game/Desktop")
+                obswebsockets_manager.set_filter_visibility(
+                    "Game/Desktop Clone", "Freeze", False
+                )
+            case "laugh":
+                print("playing laugh")
+                laugh.play()
+            case _:
+                print(f"unknown redeem: {data.reward.title}")
 
     async def event_eventsub_notification_stream_start(
         self, payload: eventsub.StreamOnlineData
@@ -135,12 +166,23 @@ class TwitchBot(commands.Bot):
         )
 
     async def event_eventsub_notification_subscription(self, payload) -> None:
-        data: eventsub.ChannelSubscriptionEndData = payload.data
+        data: eventsub.ChannelSubscribeData = payload.data
         username = data.user.name if data.user else "Someone"
         print(f"{username} subscribed({data.tier}) woohoo!")
         self.somnia_tts_and_respond(
             f"{username} just subscribed to the channel",
             f"{username} just subscribed to the channel, please thank them.",
+        )
+
+    async def event_eventsub_notification_subscription_message(self, payload) -> None:
+        data: eventsub.ChannelSubscriptionMessageData = payload.data
+        username = data.user.name if data.user else "Someone"
+        print(f"{username} subscribed({data.tier}) woohoo!")
+        streak = data.streak
+        message = data.message
+        self.somnia_tts_and_respond(
+            f"{username} subscribed to the channel for {streak} months, with the messaage: {message}",
+            f"{username} subscribed to the channel for {streak} months, with the messaage: {message}. please thank them.",
         )
 
     async def event_eventsub_notification_channel_update(
@@ -150,7 +192,7 @@ class TwitchBot(commands.Bot):
         print(payload)
 
     async def event_eventsub_notification_raid(self, payload) -> None:
-        data: eventsub.ChannelSubscriptionEndData = payload.data
+        data: eventsub.ChannelRaidData = payload.data
         raider = data.raider
 
         print(f"Raid from: {raider.name} ({raider.id})")
@@ -202,9 +244,62 @@ class TwitchBot(commands.Bot):
 
     @commands.command()
     async def ping(self, ctx: commands.Context):
-        if ctx.author.id != TWITCH_OWNER_ID:
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
         ping.play()
+
+    @commands.command()
+    async def laugh(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        laugh.play()
+
+    @commands.command()
+    async def blind(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        blind.play()
+
+    @commands.command()
+    async def bonjour(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        await ctx.send("Toggling Mustache...")
+        visbility = obswebsockets_manager.get_source_visibility(
+            "Game/Desktop", "bonjour"
+        )
+        obswebsockets_manager.set_source_visibility(
+            "Game/Desktop", "bonjour", not visbility
+        )
+
+    @commands.command()
+    async def bonjourRainbow(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        await ctx.send("Toggling Mustache rainbow")
+        visbility = obswebsockets_manager.get_filter_visibility("bonjour", "rainbow")
+        obswebsockets_manager.set_filter_visibility("bonjour", "rainbow", not visbility)
+
+    @commands.command()
+    async def unionbreak(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        await ctx.send("Toggling Union Break...")
+        visible = obswebsockets_manager.get_source_visibility(
+            "Conditional Overlay Stuff", "Union Break"
+        )
+        if not visible:
+            obswebsockets_manager.set_source_visibility(
+                "Game/Desktop", "Emergency Meeting", True
+            )
+        obswebsockets_manager.set_source_visibility(
+            "Conditional Overlay Stuff", "Union Break", not visible
+        )
+        if not visible:
+            await asyncio.sleep(1)
+            obswebsockets_manager.set_source_visibility(
+                "Game/Desktop", "Emergency Meeting", False
+            )
 
     @commands.command()
     @commands.cooldown(1, 45, commands.Bucket.user)

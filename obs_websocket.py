@@ -53,6 +53,15 @@ class OBSWebsocketsManager:
             )
         )
 
+    def get_filter_visibility(self, source_name, filter_name):
+        response = self.client.call(
+            requests.GetSourceFilter(
+                sourceName=source_name,
+                filterName=filter_name,
+            )
+        )
+        return response.datain["filterEnabled"]
+
     # Set the visibility of any source
     def set_source_visibility(self, scene_name, source_name, source_visible=True):
         response = self.client.call(
@@ -66,6 +75,19 @@ class OBSWebsocketsManager:
                 sceneItemEnabled=source_visible,
             )
         )
+
+    def get_source_visibility(self, scene_name, source_name):
+        response = self.client.call(
+            requests.GetSceneItemId(sceneName=scene_name, sourceName=source_name)
+        )
+        myItemID = response.datain["sceneItemId"]
+        response2 = self.client.call(
+            requests.GetSceneItemEnabled(
+                sceneName=scene_name,
+                sceneItemId=myItemID,
+            )
+        )
+        return response2.datain["sceneItemEnabled"]
 
     # Returns the current text of a text source
     def get_text(self, source_name):
@@ -162,12 +184,22 @@ if __name__ == "__main__":
     # obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia", False)
     # obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia says", False)
 
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos Time", True)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos", True)
-    time.sleep(0.5)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "shaiaz", True)
-    time.sleep(5)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "shaiaz", False)
-    time.sleep(0.5)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos Time", False)
-    obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos", False)
+    ## Bezos Ad Break Testing
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos Time", True)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos", True)
+    # time.sleep(0.5)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "shaiaz", True)
+    # time.sleep(5)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "shaiaz", False)
+    # time.sleep(0.5)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos Time", False)
+    # obswebsockets_manager.set_source_visibility("Game/Desktop", "Bezos", False)
+
+    ## Testing meme format
+    # obswebsockets_manager.set_scene("meme format")
+    # obswebsockets_manager.set_filter_visibility("Game/Desktop Clone", "Freeze", True)
+    # time.sleep(5)
+    # obswebsockets_manager.set_scene("Game/Desktop")
+    # obswebsockets_manager.set_filter_visibility("Game/Desktop Clone", "Freeze", False)
+    visbility = obswebsockets_manager.get_filter_visibility("bonjour", "rainbow")
+    obswebsockets_manager.set_filter_visibility("bonjour", "rainbow", not visbility)

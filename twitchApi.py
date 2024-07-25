@@ -116,7 +116,8 @@ async def handle_events(websocket):
                     )
 
                     print("[yellow]Ad break over")
-
+        elif msg_type == "notification":
+            print("[red]TODO: need to handle reconnect")
     print("[red]Finished handling events?")
 
 
