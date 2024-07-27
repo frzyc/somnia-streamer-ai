@@ -1,14 +1,16 @@
-import twitchio
+import threading
 from twitchio.channel import Channel
 from twitchio.ext import commands, eventsub
 from dotenv import load_dotenv
 import os
 from websockets.sync.client import connect
+from streampet import StreamPet, pet_run_event
 from util.msgUtil import toMsg
 from rich import print
 import aiohttp
 import asyncio
 import pygame
+from obs_interactions import ObsInteractions
 from globals import getOBSWebsocketsManager
 
 # Just in case this file is loaded alone
@@ -20,7 +22,9 @@ TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
 TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET")
 TWITCH_OWNER_ID = os.getenv("TWITCH_OWNER_ID")
 SOCKET_PORT_SOMNIA = os.getenv("SOCKET_PORT_SOMNIA")
-obswebsockets_manager = getOBSWebsocketsManager()
+
+obsm = getOBSWebsocketsManager()
+obs = ObsInteractions(obsm)
 websocket = None
 try:
     websocket = connect(f"ws://localhost:{SOCKET_PORT_SOMNIA}")
@@ -32,6 +36,8 @@ except:
         f"[yellow]Could not connect to Somnia Streamer AI at port:{SOCKET_PORT_SOMNIA}"
     )
 
+stream_pet: None | StreamPet = None
+thread_lock = threading.Lock()
 
 pygame.mixer.init()
 pipes = pygame.mixer.Sound("sounds/pipes.mp3")
@@ -58,6 +64,9 @@ class TwitchBot(commands.Bot):
         # For now we just want to ignore them...
         if message.echo:
             return
+        with thread_lock:
+            global stream_pet
+            stream_pet.addSpeed(100)
 
         # Print the contents of our message to console...
         # print(message.content)
@@ -129,19 +138,15 @@ class TwitchBot(commands.Bot):
                 sus.play()
             case "meme format":
                 print("playing meme format")
-                obswebsockets_manager.set_text("meme text", data.input)
-                obswebsockets_manager.set_scene("meme format")
-                obswebsockets_manager.set_filter_visibility(
-                    "Game/Desktop Clone", "Freeze", True
-                )
-                await asyncio.sleep(5)
-                obswebsockets_manager.set_scene("Game/Desktop")
-                obswebsockets_manager.set_filter_visibility(
-                    "Game/Desktop Clone", "Freeze", False
-                )
+                await obs.memeFormat(data.input)
             case "laugh":
                 print("playing laugh")
                 laugh.play()
+            case "energy drink":
+                await data.broadcaster.channel.send("giving Ellen an energy drink")
+                with thread_lock:
+                    global stream_pet
+                    stream_pet.addSpeed(1000)
             case _:
                 print(f"unknown redeem: {data.reward.title}")
 
@@ -265,41 +270,26 @@ class TwitchBot(commands.Bot):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
         await ctx.send("Toggling Mustache...")
-        visbility = obswebsockets_manager.get_source_visibility(
-            "Game/Desktop", "bonjour"
-        )
-        obswebsockets_manager.set_source_visibility(
-            "Game/Desktop", "bonjour", not visbility
-        )
+        obs.bonjour()
 
     @commands.command()
     async def bonjourRainbow(self, ctx: commands.Context):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
         await ctx.send("Toggling Mustache rainbow")
-        visbility = obswebsockets_manager.get_filter_visibility("bonjour", "rainbow")
-        obswebsockets_manager.set_filter_visibility("bonjour", "rainbow", not visbility)
+        obs.bonjourRainbow()
 
-    @commands.command()
+    @commands.command(name="unionbreak", aliases=["brb"])
     async def unionbreak(self, ctx: commands.Context):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
-        await ctx.send("Toggling Union Break...")
-        visible = obswebsockets_manager.get_source_visibility(
-            "Conditional Overlay Stuff", "Union Break"
-        )
-        if not visible:
-            obswebsockets_manager.set_source_visibility(
-                "Game/Desktop", "Emergency Meeting", True
-            )
-        obswebsockets_manager.set_source_visibility(
-            "Conditional Overlay Stuff", "Union Break", not visible
-        )
-        if not visible:
-            await asyncio.sleep(1)
-            obswebsockets_manager.set_source_visibility(
-                "Game/Desktop", "Emergency Meeting", False
-            )
+
+        async def runAds():
+            print("Running ads")
+            user = await ctx.message.channel.user()
+            await user.start_commercial(TWITCH_ACCESS_TOKEN, 180)
+
+        await obs.unionBreak(ctx.send, runAds)
 
     @commands.command()
     @commands.cooldown(1, 45, commands.Bucket.user)
@@ -374,13 +364,32 @@ async def refresh_token_and_run(bot: TwitchBot):
     bot.run()
 
 
+def handle_pet():
+    global stream_pet
+    stream_pet = StreamPet(obsm)
+    stream_pet.loop.run_until_complete(stream_pet.runner)
+    stream_pet.loop.run_forever()
+    print("[red]Pet is deadged...[/red]")
+
+
 if __name__ == "__main__":
-    bot = TwitchBot()
+    petthread = threading.Thread(target=handle_pet)
+    petthread.start()
     try:
+        # # originally wanted to catch twitchio.errors.AuthenticationError, then bot.close(), and restart, but that didn't work...
+        # # now we refresh the token before running the bot every time.
+        asyncio.run(refresh_token_and_save())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        bot = TwitchBot()
         bot.loop.create_task(bot.sub())
         bot.run()
+    except KeyboardInterrupt:
+        print("[red]Keyboard interrupt...[/red]")
 
-    except twitchio.errors.AuthenticationError:
-        bot.close()
-        print("[yellow]AuthenticationError, refreshing token...")
-        asyncio.run(refresh_token_and_run(bot))
+        pass
+    print("[red]Bot is deadged...[/red]")
+    asyncio.run(bot.close())
+    print("[yellow]Stopping pet...[/yellow]")
+    pet_run_event.clear()
+    petthread.join()

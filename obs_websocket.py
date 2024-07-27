@@ -26,15 +26,15 @@ class OBSWebsocketsManager:
         )
         try:
             self.client.connect()
+            print(
+                f"[green]Connected to OBS Websockets! OBS version: {self.client.call(requests.GetVersion()).getObsVersion()}"
+            )
         except:
             print(
                 "[red]COULD NOT CONNECT TO OBS!\nDouble check that you have OBS open and that your websockets server is enabled in OBS."
             )
-            sys.exit()
-        finally:
-            print(
-                f"[green]Connected to OBS Websockets! OBS version: {self.client.call(requests.GetVersion()).getObsVersion()}"
-            )
+            # sys.exit()
+            self.client = None
 
     def disconnect(self):
         self.client.disconnect()

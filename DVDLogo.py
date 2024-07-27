@@ -3,7 +3,7 @@ from globals import getOBSWebsocketsManager
 import pygame
 
 pygame.mixer.init()
-cornersound = pygame.mixer.Sound("sounds/sitcom-laughing-1.mp3")
+cornersound = pygame.mixer.Sound("sounds/Corner.mp3")
 
 
 def dvdLogo():
