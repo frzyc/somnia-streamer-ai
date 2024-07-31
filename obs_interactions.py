@@ -13,6 +13,12 @@ unionbreak = {
     "text": "unionbreak_text",
     "meeting": "Emergency Meeting",
 }
+adbreak = {
+    "sceneName": "Ad Break",
+    "shaiaz": "shaiaz",
+    "text": "Bezos Time",
+    "bezos": "Bezos",
+}
 mic_in = {"sceneName": "Audio stuff", "srcName": "Mic in"}
 
 
@@ -69,12 +75,27 @@ class ObsInteractions:
         print(f"[green]OBS: Mic in {enString}")
         self.obs.set_source_visibility(mic_in["sceneName"], mic_in["srcName"], onBreak)
         if not onBreak:
-            await runAds()
             await asyncio.sleep(1)
             print(f"disble meeting")
             self.obs.set_source_visibility(
                 unionbreak["sceneName"], unionbreak["meeting"], False
             )
+            # move this to the end because sometimes ads don't work which stops meeting toggle above
+            await runAds()
+
+    async def bezos_time(self, duration: int):
+        print("[yellow]Ad break started")
+        self.obs.set_source_visibility(adbreak["sceneName"], adbreak["text"], True)
+        self.obs.set_source_visibility(adbreak["sceneName"], adbreak["bezos"], True)
+        await asyncio.sleep(0.5)
+        self.obs.set_source_visibility(adbreak["sceneName"], adbreak["shaiaz"], True)
+        await asyncio.sleep(duration)
+        self.obs.set_source_visibility(adbreak["sceneName"], adbreak["shaiaz"], False)
+        await asyncio.sleep(0.5)
+        self.obs.set_source_visibility(adbreak["sceneName"], adbreak["text"], False)
+        self.obs.set_source_visibility(adbreak["sceneName"], adbreak["bezos"], False)
+
+        print("[yellow]Ad break over")
 
 
 if __name__ == "__main__":

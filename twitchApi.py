@@ -8,13 +8,15 @@ from websockets.exceptions import ConnectionClosedError
 from rich import print
 import aiohttp
 from globals import getOBSWebsocketsManager
+from obs_interactions import ObsInteractions
 
 load_dotenv(dotenv_path=".env.local")
 TWITCH_OWNER_ID = os.getenv("TWITCH_OWNER_ID")
 TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
 TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET")
 TWITCH_ACCESS_TOKEN = os.getenv("TWITCH_ACCESS_TOKEN")
-obswebsockets_manager = getOBSWebsocketsManager()
+obsm = getOBSWebsocketsManager()
+obs = ObsInteractions(obsm)
 
 # A simple API to deal with whatever twitchio couldn't handle (mainly ad break)
 
@@ -91,31 +93,7 @@ async def handle_events(websocket):
             # Handling subscriptions
             if "subscription" in event["payload"]:
                 if event["payload"]["subscription"]["type"] == "channel.ad_break.begin":
-                    print("[yellow]Ad break started")
-                    obswebsockets_manager.set_source_visibility(
-                        "Game/Desktop", "Bezos Time", True
-                    )
-                    obswebsockets_manager.set_source_visibility(
-                        "Game/Desktop", "Bezos", True
-                    )
-                    await asyncio.sleep(0.5)
-                    obswebsockets_manager.set_source_visibility(
-                        "Game/Desktop", "shaiaz", True
-                    )
-                    duration = event["payload"]["event"]["duration_seconds"]
-                    await asyncio.sleep(duration)
-                    obswebsockets_manager.set_source_visibility(
-                        "Game/Desktop", "shaiaz", False
-                    )
-                    await asyncio.sleep(0.5)
-                    obswebsockets_manager.set_source_visibility(
-                        "Game/Desktop", "Bezos Time", False
-                    )
-                    obswebsockets_manager.set_source_visibility(
-                        "Game/Desktop", "Bezos", False
-                    )
-
-                    print("[yellow]Ad break over")
+                    await obs.bezos_time(event["payload"]["event"]["duration_seconds"])
         elif msg_type == "notification":
             print("[red]TODO: need to handle reconnect")
     print("[red]Finished handling events?")

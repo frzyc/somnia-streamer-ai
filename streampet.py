@@ -14,8 +14,7 @@ SOURCE_SCENE_GROUP = "streampet"
 SOURCE_GIF = "ellengif"
 SOURCE_GIF_FILTER_RAINBOW = "rainbow"
 SOURCE_NAME_LABEL = "streampetlabel"
-TIME_RATE = 0.001
-DEF_SPEED = 1000
+TIME_RATE = 0.005
 MAX_SPEED = 3000
 SPEED_DECAY = 0.05
 
@@ -37,7 +36,7 @@ class StreamPet:
         self.x = 0
         self.y = SCREEN_HEIGHT
         self.dx = 1
-        self.speed = DEF_SPEED  # pixels per second
+        self.speed = 1  # initial speed to run it once
         self.runner = None
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)

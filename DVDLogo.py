@@ -8,8 +8,8 @@ cornersound = pygame.mixer.Sound("sounds/Corner.mp3")
 
 def dvdLogo():
     obswebsockets_manager = getOBSWebsocketsManager()
-    SOURCE_SCENE_NAME = "Conditional Overlay Stuff"
-    SOURCE_NAME = "wednesday"
+    SOURCE_SCENE_NAME = "Game/Desktop"
+    SOURCE_NAME = "DVD Logo"
     transform = obswebsockets_manager.get_source_transform(
         SOURCE_SCENE_NAME, SOURCE_NAME
     )
@@ -24,7 +24,7 @@ def dvdLogo():
     dx = 1
     dy = 1
     speed = 1000  # pixels per second
-    timeRate = 0.001
+    timeRate = 0.005
     while True:
         obswebsockets_manager.set_source_transform(
             SOURCE_SCENE_NAME,
