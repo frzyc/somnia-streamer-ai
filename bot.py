@@ -12,6 +12,7 @@ import asyncio
 import pygame
 from obs_interactions import ObsInteractions
 from globals import getOBSWebsocketsManager
+import time
 
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
@@ -48,8 +49,12 @@ sus = pygame.mixer.Sound("sounds/Among Us (Role Reveal) - Sound Effect (HD).mp3"
 laugh = pygame.mixer.Sound("sounds/sitcom-laughing-1.mp3")
 laugh.set_volume(0.3)
 
+MESSAGE_WINDOW_S = 3 * 60
+
 
 class TwitchBot(commands.Bot):
+    messages = []
+
     def __init__(self):
         # Initialise our Bot with our access token, prefix and a list of channels to join on boot...
         super().__init__(
@@ -64,9 +69,14 @@ class TwitchBot(commands.Bot):
         # For now we just want to ignore them...
         if message.echo:
             return
+        self.add_message(message.author.name, message.content)
+        unique_chatters = list({msg["username"] for msg in self.messages})
+        num_unique_chatters = len(unique_chatters)
+
         with thread_lock:
             global stream_pet
-            stream_pet.addSpeed(100)
+            stream_pet.set_multi_stack(num_unique_chatters)
+            stream_pet.add_speed(100)
 
         # Print the contents of our message to console...
         # print(message.content)
@@ -74,6 +84,17 @@ class TwitchBot(commands.Bot):
         # Since we have commands and are overriding the default `event_message`
         # We must let the bot know we want to handle and invoke our commands...
         await self.handle_commands(message)
+
+    def add_message(self, username, message):
+        current_time = int(time.time())
+        self.messages = [
+            msg
+            for msg in self.messages
+            if current_time - msg["timestamp"] <= MESSAGE_WINDOW_S
+        ]
+        self.messages.append(
+            {"username": username, "message": message, "timestamp": current_time}
+        )
 
     async def event_ready(self):
         # We are logged in and ready to chat and use commands...
@@ -143,10 +164,12 @@ class TwitchBot(commands.Bot):
                 print("playing laugh")
                 laugh.play()
             case "energy drink":
-                await data.broadcaster.channel.send("giving Ellen an energy drink")
                 with thread_lock:
                     global stream_pet
-                    stream_pet.addSpeed(1000)
+                    speed_added = stream_pet.add_speed(1000)
+                await data.broadcaster.channel.send(
+                    f"Giving Ellen an energy drink: {speed_added:.1f} Energy added."
+                )
             case _:
                 print(f"unknown redeem: {data.reward.title}")
 
@@ -292,6 +315,12 @@ class TwitchBot(commands.Bot):
         await obs.unionBreak(ctx.send, runAds)
 
     @commands.command()
+    async def laps(self, ctx: commands.Context, laps: int):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        stream_pet.set_laps(int(laps))
+
+    @commands.command()
     @commands.cooldown(1, 45, commands.Bucket.user)
     # FIXME: does not parse a whole sentence, just the first parameter
     async def somnia(self, ctx: commands.Context, question: str):
@@ -303,6 +332,14 @@ class TwitchBot(commands.Bot):
     def ask_somnia(self, name: str, question: str):
         print(f"[blue]{name} asks Somnia: {question}[/blue]")
         self.somnia_tts_and_respond(f"{name} Ask the question: {question}", question)
+
+    @commands.command()
+    async def debug(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        await ctx.send(
+            f"Stream pet energy:{stream_pet.speed:.0f} multi:{stream_pet.multi:.2f}"
+        )
 
     def somnia_tts_and_respond(self, tts: str, prompt: str):
         if not websocket:

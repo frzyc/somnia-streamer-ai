@@ -16,7 +16,8 @@ SOURCE_GIF_FILTER_RAINBOW = "rainbow"
 SOURCE_NAME_LABEL = "streampetlabel"
 TIME_RATE = 0.005
 MAX_SPEED = 3000
-SPEED_DECAY = 0.05
+SPEED_DECAY = 25
+STACK_MULTI = 0.1
 
 pet_run_event = threading.Event()
 pet_run_event.set()
@@ -33,26 +34,38 @@ class StreamPet:
         self.eleWidth = transform["width"]
         self.scalex = abs(transform["scaleX"])
 
-        self.x = 0
+        self.x = self.eleWidth
         self.y = SCREEN_HEIGHT
         self.dx = 1
         self.speed = 1  # initial speed to run it once
         self.runner = None
+        self.multi = 1  # energy multiplier
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
-        self.runRunner()
+        self.run_runner()
 
-    def addSpeed(self, speed):
-        self.speed = self.speed + speed
-        self.runRunner()
+    def set_laps(self, laps):
+        self.laps = laps
 
-    def runRunner(self):
+    def set_multi_stack(self, stacks):
+        self.set_multi(1 + stacks * STACK_MULTI)
+
+    def set_multi(self, multi):
+        self.multi = multi
+
+    def add_speed(self, speed):
+        moar_speed = speed * self.multi
+        self.speed = self.speed + moar_speed
+        self.run_runner()
+        return moar_speed
+
+    def run_runner(self):
         if self.runner is not None:
             return
         self.runner = self.loop.create_task(self.run())
-        self.runner.add_done_callback(self.runnerDone)
+        self.runner.add_done_callback(self.runner_done)
 
-    def checkDisappear(self):
+    def check_disappear(self):
         if self.speed <= 0:
             self.obs.set_source_visibility(SOURCE_SCENE_NAME, SOURCE_SCENE_GROUP, False)
 
@@ -61,7 +74,7 @@ class StreamPet:
         while pet_run_event.is_set():
             if self.speed > 0:
                 self.move()
-                self.addSpeed(-SPEED_DECAY)
+                self.add_speed(-(SPEED_DECAY * TIME_RATE))
             time.sleep(TIME_RATE)
         self.loop.stop()
 
@@ -72,7 +85,13 @@ class StreamPet:
         elif (self.x > (SCREEN_WIDTH - self.eleWidth / 2)) and self.dx > 0:
             self.dx = -1
         self.x = self.x + self.dx * clamp(self.speed, 0, MAX_SPEED) * TIME_RATE
-        self.obs.set_text(SOURCE_NAME_LABEL, f"Laps: {self.laps}")
+        if self.multi > 1.5:
+            self.obs.set_text(
+                SOURCE_NAME_LABEL,
+                f"Laps: {self.laps} (x{self.multi:.1f})",
+            )
+        else:
+            self.obs.set_text(SOURCE_NAME_LABEL, f"Laps: {self.laps}")
         self.obs.set_source_transform(
             SOURCE_SCENE_NAME,
             SOURCE_SCENE_GROUP,
@@ -94,7 +113,7 @@ class StreamPet:
             self.speed > (MAX_SPEED * 0.7),
         )
 
-    def runnerDone(self, task):
+    def runner_done(self, task):
         self.runner = None
 
 
