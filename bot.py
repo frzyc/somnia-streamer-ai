@@ -68,6 +68,7 @@ MESSAGE_WINDOW_S = 3 * 60
 
 class TwitchBot(commands.Bot):
     messages = []
+    tts_username = None
 
     def __init__(self):
         # Initialise our Bot with our access token, prefix and a list of channels to join on boot...
@@ -88,12 +89,20 @@ class TwitchBot(commands.Bot):
         num_unique_chatters = len(unique_chatters)
         if streampet_socket:
             streampet_socket.send(set_multi_stack(num_unique_chatters))
-            await asyncio.sleep(0.01)
             streampet_socket.send(add_speed(100))
             streampet_socket.recv()
 
         # Print the contents of our message to console...
         # print(message.content)
+
+        if message.author.name == self.tts_username:
+            exclude = (
+                message.content.startswith("!")
+                or message.content.startswith("?")
+                or message.content.startswith("http")
+            )
+            if not exclude:
+                somnia_socket.send(to_msg(message.content, True, 0.5))
 
         # Since we have commands and are overriding the default `event_message`
         # We must let the bot know we want to handle and invoke our commands...
@@ -206,6 +215,9 @@ class TwitchBot(commands.Bot):
     async def event_eventsub_notification_followV2(self, payload) -> None:
         data: eventsub.ChannelFollowData = payload.data
         print(f"{data.user.name} followed woohoo!")
+        if streampet_socket:
+            streampet_socket.send(add_speed(2000))
+            streampet_socket.recv()
         self.somnia_tts_and_respond(
             f"{data.user.name} just followed the channel",
             f"{data.user.name} just followed the channel, please thank them.",
@@ -215,6 +227,9 @@ class TwitchBot(commands.Bot):
         data: eventsub.ChannelSubscribeData = payload.data
         username = data.user.name if data.user else "Someone"
         print(f"{username} subscribed({data.tier}) woohoo!")
+        if streampet_socket:
+            streampet_socket.send(add_speed(5000))
+            streampet_socket.recv()
         self.somnia_tts_and_respond(
             f"{username} just subscribed to the channel",
             f"{username} just subscribed to the channel, please thank them.",
@@ -224,6 +239,9 @@ class TwitchBot(commands.Bot):
         data: eventsub.ChannelSubscriptionMessageData = payload.data
         username = data.user.name if data.user else "Someone"
         print(f"{username} subscribed({data.tier}) woohoo!")
+        if streampet_socket:
+            streampet_socket.send(add_speed(5000))
+            streampet_socket.recv()
         streak = data.streak
         message = data.message
         self.somnia_tts_and_respond(
@@ -347,6 +365,17 @@ class TwitchBot(commands.Bot):
             return await ctx.send("Sorry, you are not allowed to use somnia directly.")
         self.ask_somnia(ctx.author.name, question)
 
+    @commands.command()
+    async def tts(self, ctx: commands.Context, username: str):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        if username:
+            self.tts_username = username.lower()
+            return await ctx.send(f"Setting {username} for somnia tts")
+        else:
+            self.tts_username = None
+            return await ctx.send(f"Clearing somnia tts")
+
     # Helper functions
     def ask_somnia(self, name: str, question: str):
         print(f"[blue]{name} asks Somnia: {question}[/blue]")
@@ -453,4 +482,3 @@ if __name__ == "__main__":
         pass
     print("[red]Bot is deadged...[/red]")
     asyncio.run(bot.close())
-    print("[yellow]Stopping pet...[/yellow]")
