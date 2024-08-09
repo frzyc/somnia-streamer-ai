@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import os
 from websockets.sync.client import connect
 import json
-from util.msgUtil import toMsg
+from util.somnia_msg_util import to_msg
 
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
@@ -24,7 +24,7 @@ def mic_handler():
     if mic_result == "":
         print("[red]Did not receive any input from your microphone!")
         return
-    websocket.send(toMsg(mic_result))
+    websocket.send(to_msg(mic_result))
 
 
 def handle_text_input(skip_ai=False):
@@ -32,7 +32,7 @@ def handle_text_input(skip_ai=False):
     if not text:
         return
 
-    websocket.send(toMsg(text, skip_ai))
+    websocket.send(to_msg(text, skip_ai))
 
 
 def main():

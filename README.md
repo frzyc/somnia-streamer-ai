@@ -51,3 +51,15 @@ This module handles a lot of the Twitch stream interactions, listen to events, a
 ```
 python bot.py
 ```
+
+### Run Twitch API
+Because TwitchIO does not have a good ads API, this module is used to interface directly with twitch to detect when ads are running
+```
+python twitchApi.py
+```
+
+### Run stream pet
+A pet that runs around on the bottom of the screen, the more chatters, the further it goes. Can give energy drink for mroe energy
+```
+python streampet.py
+```

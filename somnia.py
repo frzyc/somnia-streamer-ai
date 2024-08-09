@@ -6,7 +6,7 @@ import time
 import asyncio
 from websockets.server import serve
 import os
-from util.msgUtil import fromMsg
+from util.somnia_msg_util import from_msg
 from websockets import ConnectionClosedOK
 import websockets
 from rich import print
@@ -49,10 +49,10 @@ def talk_to_somnia(text, skip_ai=False, sleep_time=5):
 async def handle_socket(websocket):
     try:
         async for message in websocket:
-            data = fromMsg(message)
+            data = from_msg(message)
             if data is None:
                 continue
-            [text, skip_ai, sleep_time] = data
+            (text, skip_ai, sleep_time) = data
             talk_to_somnia(text, skip_ai, sleep_time)
     except ConnectionClosedOK:
         print("Connection closed")

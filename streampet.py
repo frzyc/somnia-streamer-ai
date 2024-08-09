@@ -5,6 +5,12 @@ from obs_websocket import OBSWebsocketsManager
 from util.number import clamp
 import asyncio
 from rich import print
+from websockets.server import serve
+from websockets import ConnectionClosedOK
+import websockets
+import os
+import json
+from util.streampet_msg_util import *
 
 SCREEN_WIDTH = 1920 * 2
 SCREEN_HEIGHT = 1080 * 2
@@ -18,7 +24,6 @@ TIME_RATE = 0.005
 MAX_SPEED = 3000
 SPEED_DECAY = 25
 STACK_MULTI = 0.1
-
 pet_run_event = threading.Event()
 pet_run_event.set()
 
@@ -117,7 +122,58 @@ class StreamPet:
         self.runner = None
 
 
+def handle_pet():
+    global stream_pet
+    stream_pet = StreamPet(getOBSWebsocketsManager())
+    stream_pet.loop.run_until_complete(stream_pet.runner)
+    stream_pet.loop.run_forever()
+    print("[red]Pet is deadged...[/red]")
+
+
+async def handle_socket(websocket):
+    global stream_pet
+    try:
+        async for message in websocket:
+            data = json.loads(message)
+            if data is None:
+                continue
+            match data:
+                case {"type": "set_laps", "laps": laps}:
+                    stream_pet.set_laps(laps)
+                case {"type": "set_multi", "multi": multi}:
+                    stream_pet.set_multi(multi)
+                case {"type": "set_multi_stack", "stacks": stacks}:
+                    stream_pet.set_multi_stack(stacks)
+                case {"type": "add_speed", "speed": speed}:
+                    speed_moar = stream_pet.add_speed(speed)
+                    await websocket.send(speed_added(speed_moar))
+                case {"type": "get_debug"}:
+                    await websocket.send(
+                        debug_msg(stream_pet.speed, stream_pet.multi, stream_pet.laps)
+                    )
+
+    except ConnectionClosedOK:
+        print("Connection closed")
+    except websockets.exceptions.ConnectionClosedError:
+        print("Connection reset")
+
+
+SOCKET_STREAM_PET = int(os.getenv("SOCKET_STREAM_PET"))
+
+
+async def main():
+    async with serve(handle_socket, "localhost", SOCKET_STREAM_PET):
+        await asyncio.Future()  # run forever
+
+
 if __name__ == "__main__":
-    pet = StreamPet(getOBSWebsocketsManager())
-    pet.loop.run_until_complete(pet.runner)
-    pet.loop.run_forever()
+    petthread = threading.Thread(target=handle_pet)
+    petthread.start()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("[red]Keyboard interrupt...[/red]")
+
+    print("[yellow]Stopping pet...[/yellow]")
+    pet_run_event.clear()
+    petthread.join()

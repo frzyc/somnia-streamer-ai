@@ -4,8 +4,7 @@ from twitchio.ext import commands, eventsub
 from dotenv import load_dotenv
 import os
 from websockets.sync.client import connect
-from streampet import StreamPet, pet_run_event
-from util.msgUtil import toMsg
+from util.somnia_msg_util import to_msg
 from rich import print
 import aiohttp
 import asyncio
@@ -13,6 +12,14 @@ import pygame
 from obs_interactions import ObsInteractions
 from globals import getOBSWebsocketsManager
 import time
+import json
+from util.streampet_msg_util import (
+    set_multi_stack,
+    add_speed,
+    set_laps,
+    get_debug,
+    parse_debug,
+)
 
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
@@ -23,12 +30,12 @@ TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
 TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET")
 TWITCH_OWNER_ID = os.getenv("TWITCH_OWNER_ID")
 SOCKET_PORT_SOMNIA = os.getenv("SOCKET_PORT_SOMNIA")
-
+SOCKET_STREAM_PET = os.getenv("SOCKET_STREAM_PET")
 obsm = getOBSWebsocketsManager()
 obs = ObsInteractions(obsm)
-websocket = None
+somnia_socket = None
 try:
-    websocket = connect(f"ws://localhost:{SOCKET_PORT_SOMNIA}")
+    somnia_socket = connect(f"ws://localhost:{SOCKET_PORT_SOMNIA}")
     print(
         f"[green]Created a websocket connection to Somnia Streamer AI at port:{SOCKET_PORT_SOMNIA}"
     )
@@ -37,8 +44,15 @@ except:
         f"[yellow]Could not connect to Somnia Streamer AI at port:{SOCKET_PORT_SOMNIA}"
     )
 
-stream_pet: None | StreamPet = None
-thread_lock = threading.Lock()
+streampet_socket = None
+try:
+    streampet_socket = connect(f"ws://localhost:{SOCKET_STREAM_PET}")
+    print(
+        f"[green]Created a websocket connection to Stream Pet at port:{SOCKET_STREAM_PET}"
+    )
+except:
+    print(f"[yellow]Could not connect to Stream Pet at port:{SOCKET_STREAM_PET}")
+
 
 pygame.mixer.init()
 pipes = pygame.mixer.Sound("sounds/pipes.mp3")
@@ -72,11 +86,11 @@ class TwitchBot(commands.Bot):
         self.add_message(message.author.name, message.content)
         unique_chatters = list({msg["username"] for msg in self.messages})
         num_unique_chatters = len(unique_chatters)
-
-        with thread_lock:
-            global stream_pet
-            stream_pet.set_multi_stack(num_unique_chatters)
-            stream_pet.add_speed(100)
+        if streampet_socket:
+            streampet_socket.send(set_multi_stack(num_unique_chatters))
+            await asyncio.sleep(0.01)
+            streampet_socket.send(add_speed(100))
+            streampet_socket.recv()
 
         # Print the contents of our message to console...
         # print(message.content)
@@ -164,12 +178,16 @@ class TwitchBot(commands.Bot):
                 print("playing laugh")
                 laugh.play()
             case "energy drink":
-                with thread_lock:
-                    global stream_pet
-                    speed_added = stream_pet.add_speed(1000)
-                await data.broadcaster.channel.send(
-                    f"Giving Ellen an energy drink: {speed_added:.1f} Energy added."
-                )
+                if streampet_socket:
+                    streampet_socket.send(add_speed(1000))
+                    msg = streampet_socket.recv()
+                    match json.loads(msg):
+                        case {"type": "speed_added", "speed": speed_added}:
+                            await data.broadcaster.channel.send(
+                                f"Giving Ellen an energy drink: {speed_added:.1f} Energy added."
+                            )
+            case "Australia":
+                await obs.australia(data.broadcaster.channel.send, 60)
             case _:
                 print(f"unknown redeem: {data.reward.title}")
 
@@ -318,7 +336,8 @@ class TwitchBot(commands.Bot):
     async def laps(self, ctx: commands.Context, laps: int):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
-        stream_pet.set_laps(int(laps))
+        if streampet_socket:
+            streampet_socket.send(set_laps(int(laps)))
 
     @commands.command()
     @commands.cooldown(1, 45, commands.Bucket.user)
@@ -337,20 +356,37 @@ class TwitchBot(commands.Bot):
     async def debug(self, ctx: commands.Context):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
-        await ctx.send(
-            f"Stream pet energy:{stream_pet.speed:.0f} multi:{stream_pet.multi:.2f}"
-        )
+        if not streampet_socket:
+            return
+        streampet_socket.send(get_debug())
+        msg = streampet_socket.recv()
+        data = parse_debug(msg)
+        (speed, multi, laps) = data
+        await ctx.send(f"Stream pet energy:{speed:.0f} multi:{multi:.2f} laps:{laps}")
+
+    @commands.command()
+    async def australia(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+
+        await obs.australia(ctx.send, 60)
+
+    @commands.command()
+    async def australia_reset(self, ctx: commands.Context):
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        await obs.reset_webcam_rotation()
 
     def somnia_tts_and_respond(self, tts: str, prompt: str):
-        if not websocket:
+        if not somnia_socket:
             return
-        websocket.send(
-            toMsg(
+        somnia_socket.send(
+            to_msg(
                 tts,
                 skip_ai=True,
             )
         )
-        websocket.send(toMsg(prompt))
+        somnia_socket.send(to_msg(prompt))
 
 
 async def refresh_token():
@@ -401,17 +437,7 @@ async def refresh_token_and_run(bot: TwitchBot):
     bot.run()
 
 
-def handle_pet():
-    global stream_pet
-    stream_pet = StreamPet(obsm)
-    stream_pet.loop.run_until_complete(stream_pet.runner)
-    stream_pet.loop.run_forever()
-    print("[red]Pet is deadged...[/red]")
-
-
 if __name__ == "__main__":
-    petthread = threading.Thread(target=handle_pet)
-    petthread.start()
     try:
         # # originally wanted to catch twitchio.errors.AuthenticationError, then bot.close(), and restart, but that didn't work...
         # # now we refresh the token before running the bot every time.
@@ -428,5 +454,3 @@ if __name__ == "__main__":
     print("[red]Bot is deadged...[/red]")
     asyncio.run(bot.close())
     print("[yellow]Stopping pet...[/yellow]")
-    pet_run_event.clear()
-    petthread.join()
