@@ -25,6 +25,12 @@ openai_manager.chat_history.append({"role": "system", "content": somnia})
 
 thread_lock = threading.Lock()
 
+obs_somnia = {
+    "src": "Somnia stuff",
+    "somnia": "somnia",
+    "somnia_text": "somnia says",
+}
+
 
 def talk_to_somnia(text, skip_ai=False, sleep_time=5):
     if not skip_ai:
@@ -35,13 +41,19 @@ def talk_to_somnia(text, skip_ai=False, sleep_time=5):
             with open(BACKUP_FILE, "w", encoding="utf-8") as file:
                 file.write(str(openai_manager.chat_history))
     with thread_lock:
-        obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia", True)
-        obswebsockets_manager.set_text("somnia says", text)
-        obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia says", True)
-        speechtotext_manager.tts(text)
-        obswebsockets_manager.set_source_visibility("Game/Desktop", "somnia", False)
         obswebsockets_manager.set_source_visibility(
-            "Game/Desktop", "somnia says", False
+            obs_somnia["src"], obs_somnia["somnia"], True
+        )
+        obswebsockets_manager.set_text(obs_somnia["somnia_text"], text)
+        obswebsockets_manager.set_source_visibility(
+            obs_somnia["src"], obs_somnia["somnia_text"], True
+        )
+        speechtotext_manager.tts(text)
+        obswebsockets_manager.set_source_visibility(
+            obs_somnia["src"], obs_somnia["somnia"], False
+        )
+        obswebsockets_manager.set_source_visibility(
+            obs_somnia["src"], obs_somnia["somnia_text"], False
         )
         time.sleep(sleep_time)
 

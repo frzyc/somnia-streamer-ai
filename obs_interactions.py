@@ -21,6 +21,8 @@ adbreak = {
 }
 mic_in = {"sceneName": "Audio stuff", "srcName": "Mic in"}
 
+webcam_stuff = {"sceneName": "Webcam stuff", "webcam": "Webcam Scene"}
+
 
 class ObsInteractions:
 
@@ -98,16 +100,24 @@ class ObsInteractions:
         print("[yellow]Ad break over")
 
     async def reset_webcam_rotation(self):
-        rotation = self.obs.get_source_transform("Webcam stuff", "Webcam")["rotation"]
+        rotation = self.obs.get_source_transform(
+            webcam_stuff["sceneName"], webcam_stuff["webcam"]
+        )["rotation"]
         rotated = rotation != 0
         if rotated:
-            self.obs.set_source_transform("Webcam stuff", "Webcam", {"rotation": 0})
+            self.obs.set_source_transform(
+                webcam_stuff["sceneName"], webcam_stuff["webcam"], {"rotation": 0}
+            )
 
     async def australia(self, chat, duration: int):
-        self.obs.set_source_transform("Webcam stuff", "Webcam", {"rotation": 180})
+        self.obs.set_source_transform(
+            webcam_stuff["sceneName"], webcam_stuff["webcam"], {"rotation": 180}
+        )
         await chat(f"Streamer is now in Australia")
         await asyncio.sleep(60)
-        self.obs.set_source_transform("Webcam stuff", "Webcam", {"rotation": 0})
+        self.obs.set_source_transform(
+            webcam_stuff["sceneName"], webcam_stuff["webcam"], {"rotation": 0}
+        )
         await chat(f"Turning Streamer right side up")
 
 

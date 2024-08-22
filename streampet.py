@@ -15,7 +15,7 @@ from util.streampet_msg_util import *
 SCREEN_WIDTH = 1920 * 2
 SCREEN_HEIGHT = 1080 * 2
 # make sure the position alignment is at bottom center
-SOURCE_SCENE_NAME = "Game/Desktop"
+SOURCE_SCENE_NAME = "HUD"
 SOURCE_SCENE_GROUP = "streampet"
 SOURCE_GIF = "ellengif"
 SOURCE_GIF_FILTER_RAINBOW = "rainbow"

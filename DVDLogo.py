@@ -8,7 +8,7 @@ cornersound = pygame.mixer.Sound("sounds/Corner.mp3")
 
 def dvdLogo():
     obswebsockets_manager = getOBSWebsocketsManager()
-    SOURCE_SCENE_NAME = "Game/Desktop"
+    SOURCE_SCENE_NAME = "HUD"
     SOURCE_NAME = "DVD Logo"
     transform = obswebsockets_manager.get_source_transform(
         SOURCE_SCENE_NAME, SOURCE_NAME
