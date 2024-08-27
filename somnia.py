@@ -77,6 +77,7 @@ SOCKET_PORT_SOMNIA = int(os.getenv("SOCKET_PORT_SOMNIA"))
 
 async def main():
     async with serve(handle_socket, "localhost", SOCKET_PORT_SOMNIA):
+        talk_to_somnia("You've been brought online, say a greeting.")
         await asyncio.Future()  # run forever
 
 

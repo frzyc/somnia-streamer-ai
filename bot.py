@@ -1,6 +1,7 @@
+from datetime import datetime
 import threading
 from twitchio.channel import Channel
-from twitchio.ext import commands, eventsub
+from twitchio.ext import commands, eventsub, routines
 from dotenv import load_dotenv
 import os
 from websockets.sync.client import connect
@@ -65,6 +66,9 @@ laugh.set_volume(0.3)
 
 MESSAGE_WINDOW_S = 3 * 60
 
+HYDRATION_COOLDOWN_S = 30 * 60  # 30 minutes
+WORKOUT_COOLDOWN_S = 30 * 60  # 30 minutes
+
 
 class TwitchBot(commands.Bot):
     messages = []
@@ -78,6 +82,10 @@ class TwitchBot(commands.Bot):
             initial_channels=["frzyc"],
         )
         self.esclient = eventsub.EventSubWSClient(self)
+
+    def _init_routines(self):
+        self.hydration_routine.start()
+        self.workout_routine.start()
 
     async def event_message(self, message):
         # Messages with echo set to True are messages sent by the bot...
@@ -101,7 +109,7 @@ class TwitchBot(commands.Bot):
                 or message.content.startswith("?")
                 or message.content.startswith("http")
             )
-            if not exclude:
+            if not exclude and somnia_socket:
                 somnia_socket.send(to_msg(message.content, True, 0.5))
 
         # Since we have commands and are overriding the default `event_message`
@@ -123,6 +131,7 @@ class TwitchBot(commands.Bot):
         # We are logged in and ready to chat and use commands...
         print(f"Logged in as | {self.nick}")
         print(f"User id is | {self.user_id}")
+        self._init_routines()
 
     async def event_channel_joined(self, channel: Channel):
         print(f"Joined {channel.name}")
@@ -197,6 +206,12 @@ class TwitchBot(commands.Bot):
                             )
             case "Australia":
                 await obs.australia(data.broadcaster.channel.send, 60)
+            case "Hydrate!":
+                print("hydrate Redeem!")
+                self.hydration_routine.restart()
+            case "Pushupsx10":
+                print("Workout Redeem!")
+                self.workout_routine.restart()
             case _:
                 print(f"unknown redeem: {data.reward.title}")
 
@@ -376,11 +391,6 @@ class TwitchBot(commands.Bot):
             self.tts_username = None
             return await ctx.send(f"Clearing somnia tts")
 
-    # Helper functions
-    def ask_somnia(self, name: str, question: str):
-        print(f"[blue]{name} asks Somnia: {question}[/blue]")
-        self.somnia_tts_and_respond(f"{name} Ask the question: {question}", question)
-
     @commands.command()
     async def debug(self, ctx: commands.Context):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
@@ -405,6 +415,32 @@ class TwitchBot(commands.Bot):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
         await obs.reset_webcam_rotation()
+
+    # Routines
+    @routines.routine(seconds=HYDRATION_COOLDOWN_S, wait_first=True)
+    async def hydration_routine(self):
+        print("reminder to hydrate", datetime.now().strftime("%H:%M"))
+        if somnia_socket:
+            somnia_socket.send(
+                to_msg(
+                    "Its been 30 minutes since last hydration, remind Fred to drink water"
+                )
+            )
+
+    @routines.routine(seconds=WORKOUT_COOLDOWN_S, wait_first=True)
+    async def workout_routine(self):
+        print("reminder to exercise:", datetime.now().strftime("%H:%M"))
+        if somnia_socket:
+            somnia_socket.send(
+                to_msg(
+                    "Its been 30 minutes since fred last exercised, remind Fred to exercise and that he has gotten fat."
+                )
+            )
+
+    # Helper functions
+    def ask_somnia(self, name: str, question: str):
+        print(f"[blue]{name} asks Somnia: {question}[/blue]")
+        self.somnia_tts_and_respond(f"{name} Ask the question: {question}", question)
 
     def somnia_tts_and_respond(self, tts: str, prompt: str):
         if not somnia_socket:
@@ -475,6 +511,13 @@ if __name__ == "__main__":
         asyncio.set_event_loop(loop)
         bot = TwitchBot()
         bot.loop.create_task(bot.sub())
+        if somnia_socket:
+            somnia_socket.send(
+                to_msg(
+                    "Twitch chatbot module is now activated.",
+                    skip_ai=True,
+                )
+            )
         bot.run()
     except KeyboardInterrupt:
         print("[red]Keyboard interrupt...[/red]")

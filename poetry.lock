@@ -3938,10 +3938,8 @@ version = "2.10.0"
 description = "An asynchronous Python IRC and API wrapper for Twitch."
 optional = false
 python-versions = "*"
-files = [
-    {file = "twitchio-2.10.0-py3-none-any.whl", hash = "sha256:7aa0b6950dad90feeb04b03fd10d3e4292fa8a7c2e7aea6b2fd6686bc5425fb2"},
-    {file = "twitchio-2.10.0.tar.gz", hash = "sha256:3ae5e17b3764eff24ad7d12decb473c9d34f18510b5d705e0bbe6fcf0b06fd75"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 aiohttp = ">=3.6.0,<4"
@@ -3951,6 +3949,12 @@ typing-extensions = "*"
 [package.extras]
 sounds = ["pyaudio (==0.2.11)", "tinytag (>=1.9.0)", "yt-dlp (>=2022.2.4)"]
 speed = ["cchardet (>=2.1,<3)", "ciso8601 (>=2.2,<3)", "ujson (>=5.2,<6)"]
+
+[package.source]
+type = "git"
+url = "https://github.com/PythonistaGuild/TwitchIO.git"
+reference = "fix/routines"
+resolved_reference = "e88763997126896785c6a5de7d2ddd2fbe285445"
 
 [[package]]
 name = "typing-extensions"
@@ -4183,4 +4187,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "da7093159c58d3ee6dbe5964f032d2f68874d88794ee3970597b09fb58176448"
+content-hash = "319c8b4700ee8cfe7c957011bd8852a7ffff13c3649edabaeeec49b2def9dbbe"

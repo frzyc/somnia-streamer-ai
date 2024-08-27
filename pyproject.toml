@@ -15,7 +15,7 @@ openai = "^1.34.0"
 azure-cognitiveservices-speech = "^1.38.0"
 keyboard = "^0.13.5"
 obs-websocket-py = "^1.0"
-twitchio = { version = "^2.10.0", extras = [] }
+twitchio = {git = "https://github.com/PythonistaGuild/TwitchIO.git", rev = "fix/routines"}
 websockets = "^12.0"
 pygame = "^2.6.0"
 
