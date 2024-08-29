@@ -1,4 +1,5 @@
 from globals import getAzureSpeechAIManager, getOpenAiManager, getOBSWebsocketsManager
+from obs_interactions import ObsInteractions
 from util.read_text_file import read_file
 import threading
 from dotenv import load_dotenv
@@ -19,42 +20,27 @@ BACKUP_FILE = "chat_back.txt"
 # add context to OpenAI
 somnia = read_file("Somnia.txt")
 openai_manager = getOpenAiManager()
-obswebsockets_manager = getOBSWebsocketsManager()
 speechtotext_manager = getAzureSpeechAIManager()
-openai_manager.chat_history.append({"role": "system", "content": somnia})
+openai_manager.system_prompt = {"role": "system", "content": somnia}
+
+obsm = getOBSWebsocketsManager()
+obs = ObsInteractions(obsm)
 
 thread_lock = threading.Lock()
 
-obs_somnia = {
-    "src": "Somnia stuff",
-    "somnia": "somnia",
-    "somnia_text": "somnia says",
-}
 
-
-def talk_to_somnia(text, skip_ai=False, sleep_time=5):
+def talk_to_somnia(text, skip_ai=False, sleep_time=5, peek=False, skip_history=False):
     if not skip_ai:
         # Send question to OpenAi
-        text = openai_manager.chat(text)
+        text = openai_manager.chat(text, skip_history=skip_history)
         with thread_lock:
             # Write the results to txt file as a backup
             with open(BACKUP_FILE, "w", encoding="utf-8") as file:
                 file.write(str(openai_manager.chat_history))
     with thread_lock:
-        obswebsockets_manager.set_source_visibility(
-            obs_somnia["src"], obs_somnia["somnia"], True
-        )
-        obswebsockets_manager.set_text(obs_somnia["somnia_text"], text)
-        obswebsockets_manager.set_source_visibility(
-            obs_somnia["src"], obs_somnia["somnia_text"], True
-        )
+        hide = obs.showSomnia(text, peek)
         speechtotext_manager.tts(text)
-        obswebsockets_manager.set_source_visibility(
-            obs_somnia["src"], obs_somnia["somnia"], False
-        )
-        obswebsockets_manager.set_source_visibility(
-            obs_somnia["src"], obs_somnia["somnia_text"], False
-        )
+        hide()
         time.sleep(sleep_time)
 
 
@@ -64,8 +50,8 @@ async def handle_socket(websocket):
             data = from_msg(message)
             if data is None:
                 continue
-            (text, skip_ai, sleep_time) = data
-            talk_to_somnia(text, skip_ai, sleep_time)
+            (text, skip_ai, sleep_time, peek, skip_history) = data
+            talk_to_somnia(text, skip_ai, sleep_time, peek, skip_history)
     except ConnectionClosedOK:
         print("Connection closed")
     except websockets.exceptions.ConnectionClosedError:

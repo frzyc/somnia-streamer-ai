@@ -1,4 +1,5 @@
 import asyncio
+import time
 from rich import print
 from globals import getOBSWebsocketsManager
 from obs_websocket import OBSWebsocketsManager
@@ -22,6 +23,13 @@ adbreak = {
 mic_in = {"sceneName": "Audio stuff", "srcName": "Mic in"}
 
 webcam_stuff = {"sceneName": "Webcam stuff", "webcam": "Webcam Scene"}
+
+somnia = {
+    "src": "Somnia stuff",
+    "somnia": "somnia",
+    "somnia_head": "somnia head",
+    "somnia_text": "somnia says",
+}
 
 
 class ObsInteractions:
@@ -120,6 +128,18 @@ class ObsInteractions:
         )
         await chat(f"Turning Streamer right side up")
 
+    def showSomnia(self, text: str, peek=False):
+        somnia_img = somnia["somnia"] if not peek else somnia["somnia_head"]
+        self.obs.set_source_visibility(somnia["src"], somnia_img, True)
+        self.obs.set_text(somnia["somnia_text"], text)
+        self.obs.set_source_visibility(somnia["src"], somnia["somnia_text"], True)
+
+        def hide():
+            self.obs.set_source_visibility(somnia["src"], somnia_img, False)
+            self.obs.set_source_visibility(somnia["src"], somnia["somnia_text"], False)
+
+        return hide
+
 
 if __name__ == "__main__":
     # ObsInteractions().bonjour()
@@ -127,7 +147,14 @@ if __name__ == "__main__":
     # asyncio.run(ObsInteractions().memeFormat("test"))
 
     ### Test Union Break
-    async def aprint(*args):
-        print(*args)
+    # async def aprint(*args):
+    #     print(*args)
 
-    asyncio.run(ObsInteractions(getOBSWebsocketsManager()).unionBreak(aprint))
+    # asyncio.run(ObsInteractions(getOBSWebsocketsManager()).unionBreak(aprint))
+
+    ### Test Somnia with peek
+    hide = ObsInteractions(getOBSWebsocketsManager()).showSomnia(
+        "Hello World", peek=True
+    )
+    time.sleep(5)
+    hide()

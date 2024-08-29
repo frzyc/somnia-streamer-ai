@@ -110,7 +110,9 @@ class TwitchBot(commands.Bot):
                 or message.content.startswith("http")
             )
             if not exclude and somnia_socket:
-                somnia_socket.send(to_msg(message.content, True, 0.5))
+                somnia_socket.send(
+                    to_msg(message.content, True, 0.5, skip_history=True, peek=True)
+                )
 
         # Since we have commands and are overriding the default `event_message`
         # We must let the bot know we want to handle and invoke our commands...
@@ -208,9 +210,11 @@ class TwitchBot(commands.Bot):
                 await obs.australia(data.broadcaster.channel.send, 60)
             case "Hydrate!":
                 print("hydrate Redeem!")
+                self.hydration_prompt()
                 self.hydration_routine.restart()
             case "Pushupsx10":
                 print("Workout Redeem!")
+                self.workout_prompt()
                 self.workout_routine.restart()
             case _:
                 print(f"unknown redeem: {data.reward.title}")
@@ -420,22 +424,12 @@ class TwitchBot(commands.Bot):
     @routines.routine(seconds=HYDRATION_COOLDOWN_S, wait_first=True)
     async def hydration_routine(self):
         print("reminder to hydrate", datetime.now().strftime("%H:%M"))
-        if somnia_socket:
-            somnia_socket.send(
-                to_msg(
-                    "Its been 30 minutes since last hydration, remind Fred to drink water"
-                )
-            )
+        self.hydration_prompt()
 
     @routines.routine(seconds=WORKOUT_COOLDOWN_S, wait_first=True)
     async def workout_routine(self):
         print("reminder to exercise:", datetime.now().strftime("%H:%M"))
-        if somnia_socket:
-            somnia_socket.send(
-                to_msg(
-                    "Its been 30 minutes since fred last exercised, remind Fred to exercise and that he has gotten fat."
-                )
-            )
+        self.workout_prompt()
 
     # Helper functions
     def ask_somnia(self, name: str, question: str):
@@ -452,6 +446,26 @@ class TwitchBot(commands.Bot):
             )
         )
         somnia_socket.send(to_msg(prompt))
+
+    def workout_prompt(self):
+        if somnia_socket:
+            somnia_socket.send(
+                to_msg(
+                    "Its been 30 minutes since fred last exercised, remind Fred to exercise and that he has gotten fat.",
+                    peek=True,
+                    skip_history=True,
+                )
+            )
+
+    def hydration_prompt(self):
+        if somnia_socket:
+            somnia_socket.send(
+                to_msg(
+                    "Its been 30 minutes since last hydration, remind Fred to drink water.",
+                    peek=True,
+                    skip_history=True,
+                )
+            )
 
 
 async def refresh_token():

@@ -1,3 +1,4 @@
+import time
 from openai import OpenAI
 from rich import print
 from dotenv import load_dotenv
@@ -8,6 +9,7 @@ import tiktoken
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
 TOKEN_LIMT = 8000
+WINDOW = 60 * 60  # 1 hour
 
 
 def num_tokens_from_messages(messages, model="gpt-4o"):
@@ -35,6 +37,8 @@ def num_tokens_from_messages(messages, model="gpt-4o"):
 
 
 class OpenAiManager:
+    system_prompt = None
+
     def __init__(self):
         self.chat_history = []
         try:
@@ -43,16 +47,26 @@ class OpenAiManager:
             print(e)
             exit("invalid OpenAI key")
 
-    def chat(self, msg, use_history=True):
+    def chat(self, msg, skip_history=False):
+        window_cutoff = time.time() - WINDOW
         if not msg:
             return print("[red]Empty message[/red]")
 
-        prompt = {"role": "user", "content": msg}
-        if use_history:
+        prompt = {"role": "user", "content": msg, "timestamp": time.time()}
+        if not skip_history:
             self.chat_history.append(prompt)
-        tokens = num_tokens_from_messages(
-            self.chat_history if use_history else [prompt]
-        )
+
+        # Make a msg list for chatgpt with timestamp removed
+        msgs = [
+            {k: v for (k, v) in msg.items() if k != "timestamp"}
+            for msg in self.chat_history
+            if msg["timestamp"] > window_cutoff
+        ]
+        # add system prompt
+        if self.system_prompt:
+            msgs.insert(0, self.system_prompt)
+
+        tokens = num_tokens_from_messages(msgs)
         print(f"[bold]Token usage: {tokens} tokens...")
         if tokens > TOKEN_LIMT:
             return print(
@@ -61,7 +75,7 @@ class OpenAiManager:
 
         print("[yellow]Asking ChatGPT...")
         completion = self.client.chat.completions.create(
-            model="gpt-4", messages=self.chat_history if use_history else [prompt]
+            model="gpt-4o-mini", messages=msgs
         )
 
         answer = completion.choices[0].message.content
@@ -73,17 +87,10 @@ class OpenAiManager:
 if __name__ == "__main__":
     openai_manager = OpenAiManager()
 
-    chat_without_history = openai_manager.chat(
-        "Hellow, please tell me what is the purpose of life. but tell me in pig Latin",
-        use_history=False,
-    )
-
-    openai_manager.chat_history.append(
-        {
-            "role": "system",
-            "content": "Act like you are drunk but are trying to pass off that you are completely sober ",
-        }
-    )
+    openai_manager.system_prompt = {
+        "role": "system",
+        "content": "Act like you are drunk but are trying to pass off that you are completely sober ",
+    }
 
     while True:
         new_prompt = input("Ask me something?")
