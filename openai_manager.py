@@ -37,7 +37,7 @@ def num_tokens_from_messages(messages, model="gpt-4o"):
 
 
 class OpenAiManager:
-    system_prompt = None
+    system_prompt: str | None = None
 
     def __init__(self):
         self.chat_history = []
@@ -47,32 +47,60 @@ class OpenAiManager:
             print(e)
             exit("invalid OpenAI key")
 
-    def chat(self, msg, skip_history=False):
-        window_cutoff = time.time() - WINDOW
+    def chat(
+        self,
+        msg,
+        skip_history=False,
+        single_prompt=False,
+        override_system: str | None = None,
+    ):
         if not msg:
             return print("[red]Empty message[/red]")
 
         prompt = {"role": "user", "content": msg, "timestamp": time.time()}
         if not skip_history:
             self.chat_history.append(prompt)
+        if single_prompt:
+            msgs = [{k: v for (k, v) in prompt.items() if k != "timestamp"}]
+        else:
+            msgs = self.process_msgs()
 
+        # add system prompt
+        if self.system_prompt:
+            msgs.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": (
+                        override_system if override_system else self.system_prompt
+                    ),
+                },
+            )
+
+        if not self.check_tokens(msgs):
+            return
+
+        return self.chat_completion(msgs)
+
+    def process_msgs(self):
+        window_cutoff = time.time() - WINDOW
         # Make a msg list for chatgpt with timestamp removed
-        msgs = [
+        return [
             {k: v for (k, v) in msg.items() if k != "timestamp"}
             for msg in self.chat_history
             if msg["timestamp"] > window_cutoff
         ]
-        # add system prompt
-        if self.system_prompt:
-            msgs.insert(0, self.system_prompt)
 
+    def check_tokens(self, msgs) -> bool:
         tokens = num_tokens_from_messages(msgs)
         print(f"[bold]Token usage: {tokens} tokens...")
         if tokens > TOKEN_LIMT:
             return print(
                 "The length of this chat question is too large for the GPT model"
             )
+        return tokens <= TOKEN_LIMT
 
+    def chat_completion(self, msgs):
         print("[yellow]Asking ChatGPT...")
         completion = self.client.chat.completions.create(
             model="gpt-4o-mini", messages=msgs

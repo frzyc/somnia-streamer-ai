@@ -11,6 +11,7 @@ from util.somnia_msg_util import from_msg
 from websockets import ConnectionClosedOK
 import websockets
 from rich import print
+import random
 
 # Just in case this file is loaded alone
 load_dotenv(dotenv_path=".env.local")
@@ -21,7 +22,7 @@ BACKUP_FILE = "chat_back.txt"
 somnia = read_file("Somnia.txt")
 openai_manager = getOpenAiManager()
 speechtotext_manager = getAzureSpeechAIManager()
-openai_manager.system_prompt = {"role": "system", "content": somnia}
+openai_manager.system_prompt = somnia
 
 obsm = getOBSWebsocketsManager()
 obs = ObsInteractions(obsm)
@@ -29,10 +30,24 @@ obs = ObsInteractions(obsm)
 thread_lock = threading.Lock()
 
 
-def talk_to_somnia(text, skip_ai=False, sleep_time=5, peek=False, skip_history=False):
+def talk_to_somnia(
+    text,
+    skip_ai=False,
+    sleep_time=5,
+    peek=False,
+    skip_history=False,
+    single_prompt=False,
+):
     if not skip_ai:
         # Send question to OpenAi
-        text = openai_manager.chat(text, skip_history=skip_history)
+        text = openai_manager.chat(
+            text,
+            skip_history=skip_history,
+            single_prompt=single_prompt,
+            override_system=override_system_promot(),
+        )
+        if not text:
+            return
         with thread_lock:
             # Write the results to txt file as a backup
             with open(BACKUP_FILE, "w", encoding="utf-8") as file:
@@ -44,14 +59,22 @@ def talk_to_somnia(text, skip_ai=False, sleep_time=5, peek=False, skip_history=F
         time.sleep(sleep_time)
 
 
+def override_system_promot() -> str | None:
+    if random.random() < 0.1:
+        return (
+            somnia + '- You have brainrot, use the phrase "very mindful, very demure".'
+        )
+    return None
+
+
 async def handle_socket(websocket):
     try:
         async for message in websocket:
             data = from_msg(message)
             if data is None:
                 continue
-            (text, skip_ai, sleep_time, peek, skip_history) = data
-            talk_to_somnia(text, skip_ai, sleep_time, peek, skip_history)
+            (text, skip_ai, sleep_time, peek, skip_history, single_prompt) = data
+            talk_to_somnia(text, skip_ai, sleep_time, peek, skip_history, single_prompt)
     except ConnectionClosedOK:
         print("Connection closed")
     except websockets.exceptions.ConnectionClosedError:

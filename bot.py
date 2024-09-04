@@ -1,5 +1,6 @@
 from datetime import datetime
 import threading
+import twitchio
 from twitchio.channel import Channel
 from twitchio.ext import commands, eventsub, routines
 from dotenv import load_dotenv
@@ -63,10 +64,9 @@ blind = pygame.mixer.Sound("sounds/im-legally-blind-made-with-Voicemod.mp3")
 sus = pygame.mixer.Sound("sounds/Among Us (Role Reveal) - Sound Effect (HD).mp3")
 laugh = pygame.mixer.Sound("sounds/sitcom-laughing-1.mp3")
 laugh.set_volume(0.3)
+gun = pygame.mixer.Sound("sounds/critical-hit-sounds-effect.mp3")
 
 MESSAGE_WINDOW_S = 3 * 60
-
-HYDRATION_COOLDOWN_S = 30 * 60  # 30 minutes
 WORKOUT_COOLDOWN_S = 30 * 60  # 30 minutes
 
 
@@ -84,7 +84,6 @@ class TwitchBot(commands.Bot):
         self.esclient = eventsub.EventSubWSClient(self)
 
     def _init_routines(self):
-        self.hydration_routine.start()
         self.workout_routine.start()
 
     async def event_message(self, message):
@@ -173,6 +172,12 @@ class TwitchBot(commands.Bot):
         await self.esclient.subscribe_channel_subscription_messages(
             broadcaster=TWITCH_OWNER_ID, token=TWITCH_ACCESS_TOKEN
         )
+        await self.esclient.subscribe_channel_bans(
+            broadcaster=TWITCH_OWNER_ID, token=TWITCH_ACCESS_TOKEN
+        )
+        await self.esclient.subscribe_channel_unbans(
+            broadcaster=TWITCH_OWNER_ID, token=TWITCH_ACCESS_TOKEN
+        )
 
     async def event_eventsub_notification_channel_reward_redeem(self, payload) -> None:
         data: eventsub.CustomRewardRedemptionAddUpdateData = payload.data
@@ -208,10 +213,6 @@ class TwitchBot(commands.Bot):
                             )
             case "Australia":
                 await obs.australia(data.broadcaster.channel.send, 60)
-            case "Hydrate!":
-                print("hydrate Redeem!")
-                self.hydration_prompt()
-                self.hydration_routine.restart()
             case "Pushupsx10":
                 print("Workout Redeem!")
                 self.workout_prompt()
@@ -297,6 +298,16 @@ class TwitchBot(commands.Bot):
             f"{from_broadcaster.name} just shoutout the channel with {data.viewer_count} viewers, please thank them.",
         )
 
+    # Variations of this fucking function that does not work:
+    # event_eventsub_notification_channel_bans
+    # event_eventsub_notification_bans
+    async def event_eventsub_notification_ban(self, payload):
+        data: eventsub.ChannelBanData = payload.data
+        print(
+            f"User was banned: {data.user.name} ({data.user.id}) by mod:{data.moderator} reason: {data.reason}"
+        )
+        gun.play()
+
     # Error handling
 
     async def event_command_error(
@@ -378,19 +389,18 @@ class TwitchBot(commands.Bot):
 
     @commands.command()
     @commands.cooldown(1, 45, commands.Bucket.user)
-    # FIXME: does not parse a whole sentence, just the first parameter
-    async def somnia(self, ctx: commands.Context, question: str):
+    async def somnia(self, ctx: commands.Context, *, question: str):
         if ctx.author.id != TWITCH_OWNER_ID:
             return await ctx.send("Sorry, you are not allowed to use somnia directly.")
         self.ask_somnia(ctx.author.name, question)
 
     @commands.command()
-    async def tts(self, ctx: commands.Context, username: str):
+    async def tts(self, ctx: commands.Context, user: twitchio.PartialChatter | None):
         if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
             return await ctx.send("Sorry, you are not allowed to use this directly.")
-        if username:
-            self.tts_username = username.lower()
-            return await ctx.send(f"Setting {username} for somnia tts")
+        if user:
+            self.tts_username = user.name.lower()
+            return await ctx.send(f"Setting {user} for somnia tts")
         else:
             self.tts_username = None
             return await ctx.send(f"Clearing somnia tts")
@@ -421,10 +431,6 @@ class TwitchBot(commands.Bot):
         await obs.reset_webcam_rotation()
 
     # Routines
-    @routines.routine(seconds=HYDRATION_COOLDOWN_S, wait_first=True)
-    async def hydration_routine(self):
-        print("reminder to hydrate", datetime.now().strftime("%H:%M"))
-        self.hydration_prompt()
 
     @routines.routine(seconds=WORKOUT_COOLDOWN_S, wait_first=True)
     async def workout_routine(self):
@@ -451,19 +457,10 @@ class TwitchBot(commands.Bot):
         if somnia_socket:
             somnia_socket.send(
                 to_msg(
-                    "Its been 30 minutes since fred last exercised, remind Fred to exercise and that he has gotten fat.",
+                    "Its been awhile since Fred last exercised, remind Fred to workout and that he has gotten fat.",
                     peek=True,
                     skip_history=True,
-                )
-            )
-
-    def hydration_prompt(self):
-        if somnia_socket:
-            somnia_socket.send(
-                to_msg(
-                    "Its been 30 minutes since last hydration, remind Fred to drink water.",
-                    peek=True,
-                    skip_history=True,
+                    single_prompt=True,
                 )
             )
 
