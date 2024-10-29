@@ -180,6 +180,7 @@ class TwitchBot(commands.Bot):
 
     async def event_eventsub_notification_channel_reward_redeem(self, payload) -> None:
         data: eventsub.CustomRewardRedemptionAddUpdateData = payload.data
+        cost = data.reward.cost
         match data.reward.title:
             case "Ask Somnia a question":
                 self.ask_somnia(data.user.name, data.input)
@@ -210,6 +211,7 @@ class TwitchBot(commands.Bot):
                             await data.broadcaster.channel.send(
                                 f"Giving Ellen an energy drink: {speed_added:.1f} Energy added."
                             )
+                cost = 0  # reset the cost here so it does not double count.
             case "Australia":
                 await obs.australia(data.broadcaster.channel.send, 60)
             case "Pushupsx10":
@@ -218,6 +220,10 @@ class TwitchBot(commands.Bot):
                     self.cog_workout.workout_redeemed()
             case _:
                 print(f"unknown redeem: {data.reward.title}")
+        # use the cost of the redeem to add energy
+        if cost and streampet_socket:
+            streampet_socket.send(add_speed(cost))
+            streampet_socket.recv()
 
     async def event_eventsub_notification_stream_start(
         self, payload: eventsub.StreamOnlineData

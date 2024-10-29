@@ -134,7 +134,6 @@ class ObsInteractions:
         self.obs.set_source_visibility(somnia["src"], somnia_img, True)
         self.obs.set_text(somnia["somnia_text"], text)
         self.obs.set_source_visibility(somnia["src"], somnia["somnia_text"], True)
-        print("gun", gun)
         if gun:
             self.obs.set_source_visibility(somnia["src"], somnia["somnia_gun"], True)
 
