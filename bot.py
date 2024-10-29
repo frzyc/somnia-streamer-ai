@@ -1,11 +1,12 @@
 from datetime import datetime
-import threading
 import twitchio
 from twitchio.channel import Channel
 from twitchio.ext import commands, eventsub, routines
 from dotenv import load_dotenv
 import os
 from websockets.sync.client import connect
+from ban_msg import get_ban_msg
+from cog_workout import WorkoutCog
 from util.somnia_msg_util import to_msg
 from rich import print
 import aiohttp
@@ -67,12 +68,12 @@ laugh.set_volume(0.3)
 gun = pygame.mixer.Sound("sounds/critical-hit-sounds-effect.mp3")
 
 MESSAGE_WINDOW_S = 3 * 60
-WORKOUT_COOLDOWN_S = 30 * 60  # 30 minutes
 
 
 class TwitchBot(commands.Bot):
     messages = []
     tts_username = None
+    cog_workout: None | WorkoutCog = None
 
     def __init__(self):
         # Initialise our Bot with our access token, prefix and a list of channels to join on boot...
@@ -82,9 +83,6 @@ class TwitchBot(commands.Bot):
             initial_channels=["frzyc"],
         )
         self.esclient = eventsub.EventSubWSClient(self)
-
-    def _init_routines(self):
-        self.workout_routine.start()
 
     async def event_message(self, message):
         # Messages with echo set to True are messages sent by the bot...
@@ -132,7 +130,8 @@ class TwitchBot(commands.Bot):
         # We are logged in and ready to chat and use commands...
         print(f"Logged in as | {self.nick}")
         print(f"User id is | {self.user_id}")
-        self._init_routines()
+        # Enable workout cog by default
+        # self.toggle_workout_cog()
 
     async def event_channel_joined(self, channel: Channel):
         print(f"Joined {channel.name}")
@@ -215,8 +214,8 @@ class TwitchBot(commands.Bot):
                 await obs.australia(data.broadcaster.channel.send, 60)
             case "Pushupsx10":
                 print("Workout Redeem!")
-                self.workout_prompt()
-                self.workout_routine.restart()
+                if self.cog_workout and self.get_cog(self.cog_workout.name):
+                    self.cog_workout.workout_redeemed()
             case _:
                 print(f"unknown redeem: {data.reward.title}")
 
@@ -277,13 +276,17 @@ class TwitchBot(commands.Bot):
 
     async def event_eventsub_notification_raid(self, payload) -> None:
         data: eventsub.ChannelRaidData = payload.data
-        raider = data.raider
+        raiders_count = data.viewer_count
 
+        raider = data.raider
+        if streampet_socket:
+            streampet_socket.send(add_speed(300 * raiders_count))
+            streampet_socket.recv()
         print(f"Raid from: {raider.name} ({raider.id})")
-        print(f"Viewers count: {data.viewer_count}")
+        print(f"Viewers count: {raiders_count}")
         self.somnia_tts_and_respond(
-            f"{raider.name} just raided the channel with {data.viewer_count} viewers.",
-            f"{raider.name} just raided the channel with {data.viewer_count} viewers., please thank them.",
+            f"{raider.name} just raided the channel with {raiders_count} viewers.",
+            f"{raider.name} just raided the channel with {raiders_count} viewers., please thank them.",
         )
 
     async def event_eventsub_notification_channel_shoutout_receive(
@@ -298,15 +301,23 @@ class TwitchBot(commands.Bot):
             f"{from_broadcaster.name} just shoutout the channel with {data.viewer_count} viewers, please thank them.",
         )
 
-    # Variations of this fucking function that does not work:
-    # event_eventsub_notification_channel_bans
-    # event_eventsub_notification_bans
     async def event_eventsub_notification_ban(self, payload):
         data: eventsub.ChannelBanData = payload.data
-        print(
-            f"User was banned: {data.user.name} ({data.user.id}) by mod:{data.moderator} reason: {data.reason}"
-        )
+        name = data.user.name
+        id = data.user.id
+        reason = data.reason
+        moderator = data.moderator
+        print(f"User was banned: {name} ({id}) by mod:{moderator} reason: {reason}")
         gun.play()
+        if somnia_socket:
+            somnia_socket.send(
+                to_msg(
+                    get_ban_msg(name, reason),
+                    skip_ai=True,
+                    peek=True,
+                    gun=True,
+                )
+            )
 
     # Error handling
 
@@ -430,12 +441,12 @@ class TwitchBot(commands.Bot):
             return await ctx.send("Sorry, you are not allowed to use this directly.")
         await obs.reset_webcam_rotation()
 
-    # Routines
-
-    @routines.routine(seconds=WORKOUT_COOLDOWN_S, wait_first=True)
-    async def workout_routine(self):
-        print("reminder to exercise:", datetime.now().strftime("%H:%M"))
-        self.workout_prompt()
+    @commands.command()
+    async def workout(self, ctx: commands.Context):
+        print("workout command")
+        if ctx.author.id != TWITCH_OWNER_ID and not ctx.author.is_mod:
+            return await ctx.send("Sorry, you are not allowed to use this directly.")
+        self.toggle_workout_cog()
 
     # Helper functions
     def ask_somnia(self, name: str, question: str):
@@ -453,16 +464,18 @@ class TwitchBot(commands.Bot):
         )
         somnia_socket.send(to_msg(prompt))
 
-    def workout_prompt(self):
-        if somnia_socket:
-            somnia_socket.send(
-                to_msg(
-                    "Its been awhile since Fred last exercised, remind Fred to workout and that he has gotten fat.",
-                    peek=True,
-                    skip_history=True,
-                    single_prompt=True,
-                )
-            )
+    def toggle_workout_cog(self):
+        if not self.cog_workout:
+            self.cog_workout = WorkoutCog(self, somnia_socket)
+
+        if not self.get_cog(self.cog_workout.name):
+            self.add_cog(self.cog_workout)
+            self.cog_workout.enable()
+            print(f"enabled the workout cog to bot with name {self.cog_workout.name}")
+        else:
+            self.remove_cog(self.cog_workout.name)
+            self.cog_workout.disable()
+            print("disabled the workout cog to bot")
 
 
 async def refresh_token():

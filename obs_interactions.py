@@ -29,6 +29,7 @@ somnia = {
     "somnia": "somnia",
     "somnia_head": "somnia head",
     "somnia_text": "somnia says",
+    "somnia_gun": "somnia gun",
 }
 
 
@@ -86,7 +87,7 @@ class ObsInteractions:
         self.obs.set_source_visibility(mic_in["sceneName"], mic_in["srcName"], onBreak)
         if not onBreak:
             await asyncio.sleep(1)
-            print(f"disble meeting")
+            print(f"disable meeting")
             self.obs.set_source_visibility(
                 unionbreak["sceneName"], unionbreak["meeting"], False
             )
@@ -128,15 +129,19 @@ class ObsInteractions:
         )
         await chat(f"Turning Streamer right side up")
 
-    def showSomnia(self, text: str, peek=False):
+    def showSomnia(self, text: str, peek=False, gun=False):
         somnia_img = somnia["somnia"] if not peek else somnia["somnia_head"]
         self.obs.set_source_visibility(somnia["src"], somnia_img, True)
         self.obs.set_text(somnia["somnia_text"], text)
         self.obs.set_source_visibility(somnia["src"], somnia["somnia_text"], True)
+        print("gun", gun)
+        if gun:
+            self.obs.set_source_visibility(somnia["src"], somnia["somnia_gun"], True)
 
         def hide():
             self.obs.set_source_visibility(somnia["src"], somnia_img, False)
             self.obs.set_source_visibility(somnia["src"], somnia["somnia_text"], False)
+            self.obs.set_source_visibility(somnia["src"], somnia["somnia_gun"], False)
 
         return hide
 
@@ -154,7 +159,7 @@ if __name__ == "__main__":
 
     ### Test Somnia with peek
     hide = ObsInteractions(getOBSWebsocketsManager()).showSomnia(
-        "Hello World", peek=True
+        "Hello World", peek=True, gun=True
     )
     time.sleep(5)
     hide()

@@ -8,17 +8,17 @@ cornersound = pygame.mixer.Sound("sounds/Corner.mp3")
 
 def dvdLogo():
     obswebsockets_manager = getOBSWebsocketsManager()
-    SOURCE_SCENE_NAME = "HUD"
-    SOURCE_NAME = "DVD Logo"
+    SOURCE_SCENE_NAME = "Game/Desktop"
+    SOURCE_NAME = "Webcam stuff"
     transform = obswebsockets_manager.get_source_transform(
         SOURCE_SCENE_NAME, SOURCE_NAME
     )
     eleHeight = transform["height"]
     eleWidth = transform["width"]
-    SCREEN_WIDTH = 1920 * 2
-    SCREEN_HEIGHT = 1080 * 2
-    max_x = SCREEN_WIDTH - eleWidth
-    max_y = SCREEN_HEIGHT - eleHeight
+    OBS_CANVAS_WIDTH = 1920
+    OBS_CANVAS_HEIGHT = 1080
+    max_x = OBS_CANVAS_WIDTH - eleWidth
+    max_y = OBS_CANVAS_HEIGHT - eleHeight
     x = 0
     y = 0
     dx = 1
@@ -51,8 +51,8 @@ def dvdLogo():
         if y > max_y:
             dy = -1
             changey = True
-        if changex and changey:
-            cornersound.play()
+        # if changex and changey:
+        #     cornersound.play()
 
 
 if __name__ == "__main__":

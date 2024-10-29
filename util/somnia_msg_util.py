@@ -8,6 +8,7 @@ def to_msg(
     peek=False,
     skip_history=False,
     single_prompt=False,
+    gun=False,
 ) -> str:
     return json.dumps(
         {
@@ -18,11 +19,12 @@ def to_msg(
             "peek": peek,
             "skip_history": skip_history,
             "single_prompt": single_prompt,
+            "gun": gun,
         }
     )
 
 
-def from_msg(msg: str) -> tuple[str, bool, int] | None:
+def from_msg(msg: str) -> tuple[str, bool, int, bool, bool, bool, bool] | None:
     match json.loads(msg):
         case {
             "type": "question",
@@ -32,7 +34,8 @@ def from_msg(msg: str) -> tuple[str, bool, int] | None:
             "peek": peek,
             "skip_history": skip_history,
             "single_prompt": single_prompt,
+            "gun": gun,
         }:
-            return text, skip_ai, sleep_time, peek, skip_history, single_prompt
+            return text, skip_ai, sleep_time, peek, skip_history, single_prompt, gun
 
     return None

@@ -12,8 +12,8 @@ import os
 import json
 from util.streampet_msg_util import *
 
-SCREEN_WIDTH = 1920 * 2
-SCREEN_HEIGHT = 1080 * 2
+OBS_CANVAS_WIDTH = 1920
+OBS_CANVAS_HEIGHT = 1080
 # make sure the position alignment is at bottom center
 SOURCE_SCENE_NAME = "HUD"
 SOURCE_SCENE_GROUP = "streampet"
@@ -40,7 +40,7 @@ class StreamPet:
         self.scalex = abs(transform["scaleX"])
 
         self.x = self.eleWidth
-        self.y = SCREEN_HEIGHT
+        self.y = OBS_CANVAS_HEIGHT
         self.dx = 1
         self.speed = 1  # initial speed to run it once
         self.runner = None
@@ -87,7 +87,7 @@ class StreamPet:
         if (self.x <= self.eleWidth / 2) and self.dx < 0:
             self.dx = 1
             self.laps = self.laps + 1
-        elif (self.x > (SCREEN_WIDTH - self.eleWidth / 2)) and self.dx > 0:
+        elif (self.x > (OBS_CANVAS_WIDTH - self.eleWidth / 2)) and self.dx > 0:
             self.dx = -1
         self.x = self.x + self.dx * clamp(self.speed, 0, MAX_SPEED) * TIME_RATE
         if self.multi > 1.5:

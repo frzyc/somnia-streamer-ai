@@ -37,6 +37,7 @@ def talk_to_somnia(
     peek=False,
     skip_history=False,
     single_prompt=False,
+    gun=False,
 ):
     if not skip_ai:
         # Send question to OpenAi
@@ -53,18 +54,24 @@ def talk_to_somnia(
             with open(BACKUP_FILE, "w", encoding="utf-8") as file:
                 file.write(str(openai_manager.chat_history))
     with thread_lock:
-        hide = obs.showSomnia(text, peek)
+        hide = obs.showSomnia(text, peek, gun)
         speechtotext_manager.tts(text)
         hide()
         time.sleep(sleep_time)
 
 
 def override_system_promot() -> str | None:
+    somnia_temp = somnia + ""
     if random.random() < 0.1:
-        return (
-            somnia + '- You have brainrot, use the phrase "very mindful, very demure".'
+        (
+            somnia_temp
+            + '- You have brainrot, use the phrase "very mindful, very demure".\n'
         )
-    return None
+    if random.random() < 0.5:
+        (somnia_temp + "- Every few sentences, switch out words in cat speak.\n")
+    if random.random() < 0.3:
+        (somnia_temp + "- You are also evil.\n")
+    return somnia_temp
 
 
 async def handle_socket(websocket):
@@ -73,8 +80,21 @@ async def handle_socket(websocket):
             data = from_msg(message)
             if data is None:
                 continue
-            (text, skip_ai, sleep_time, peek, skip_history, single_prompt) = data
-            talk_to_somnia(text, skip_ai, sleep_time, peek, skip_history, single_prompt)
+            (text, skip_ai, sleep_time, peek, skip_history, single_prompt, gun) = data
+            print(
+                {
+                    "text": text,
+                    "skip_ai": skip_ai,
+                    "sleep_time": sleep_time,
+                    "peek": peek,
+                    "skip_history": skip_history,
+                    "single_prompt": single_prompt,
+                    "gun": gun,
+                }
+            )
+            talk_to_somnia(
+                text, skip_ai, sleep_time, peek, skip_history, single_prompt, gun
+            )
     except ConnectionClosedOK:
         print("Connection closed")
     except websockets.exceptions.ConnectionClosedError:
