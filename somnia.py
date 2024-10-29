@@ -81,17 +81,6 @@ async def handle_socket(websocket):
             if data is None:
                 continue
             (text, skip_ai, sleep_time, peek, skip_history, single_prompt, gun) = data
-            print(
-                {
-                    "text": text,
-                    "skip_ai": skip_ai,
-                    "sleep_time": sleep_time,
-                    "peek": peek,
-                    "skip_history": skip_history,
-                    "single_prompt": single_prompt,
-                    "gun": gun,
-                }
-            )
             talk_to_somnia(
                 text, skip_ai, sleep_time, peek, skip_history, single_prompt, gun
             )
