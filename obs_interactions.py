@@ -20,7 +20,7 @@ adbreak = {
     "text": "Bezos Time",
     "bezos": "Bezos",
 }
-mic_in = {"sceneName": "Audio stuff", "srcName": "Mic in"}
+mic_in = {"sceneName": "Audio stuff", "srcName": "Yeti"}
 
 webcam_stuff = {"sceneName": "Webcam stuff", "webcam": "Webcam Scene"}
 

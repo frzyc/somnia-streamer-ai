@@ -61,6 +61,9 @@ pygame.mixer.init()
 pipes = pygame.mixer.Sound("sounds/pipes.mp3")
 pipes.set_volume(0.3)  # This sound is loud AF
 ping = pygame.mixer.Sound("sounds/ping.mp3")
+vineBoom = pygame.mixer.Sound("sounds/vine-boom.mp3")
+spongebob = pygame.mixer.Sound("sounds/spongebob-fail.mp3")
+sad_violin = pygame.mixer.Sound("sounds/sad-violin.mp3")
 blind = pygame.mixer.Sound("sounds/im-legally-blind-made-with-Voicemod.mp3")
 sus = pygame.mixer.Sound("sounds/Among Us (Role Reveal) - Sound Effect (HD).mp3")
 laugh = pygame.mixer.Sound("sounds/sitcom-laughing-1.mp3")
@@ -111,6 +114,11 @@ class TwitchBot(commands.Bot):
                     to_msg(message.content, True, 0.5, skip_history=True, peek=True)
                 )
 
+        if "ellen" in message.content.lower():
+            await message.channel.send("Touch her tail!")
+            streampet_socket.send(add_speed(1000))
+            streampet_socket.recv()
+
         # Since we have commands and are overriding the default `event_message`
         # We must let the bot know we want to handle and invoke our commands...
         await self.handle_commands(message)
@@ -160,6 +168,11 @@ class TwitchBot(commands.Bot):
         await self.esclient.subscribe_channel_cheers(
             broadcaster=TWITCH_OWNER_ID, token=TWITCH_ACCESS_TOKEN
         )
+        await self.esclient.subscribe_channel_shoutout_create(
+            broadcaster=TWITCH_OWNER_ID,
+            token=TWITCH_ACCESS_TOKEN,
+            moderator=TWITCH_OWNER_ID,
+        )
         await self.esclient.subscribe_channel_shoutout_receive(
             broadcaster=TWITCH_OWNER_ID,
             token=TWITCH_ACCESS_TOKEN,
@@ -190,6 +203,15 @@ class TwitchBot(commands.Bot):
             case "ping":
                 print("playing ping")
                 ping.play()
+            case "vine boom":
+                print("playing vine boom")
+                vineBoom.play()
+            case "spongebob":
+                print("playing spongebob")
+                spongebob.play()
+            case "sad violin":
+                print("playing sad violin")
+                sad_violin.play()
             case "blind":
                 print("playing blind")
                 blind.play()
@@ -267,11 +289,11 @@ class TwitchBot(commands.Bot):
         if streampet_socket:
             streampet_socket.send(add_speed(5000))
             streampet_socket.recv()
-        streak = data.streak
+        cumulative_months = data.cumulative_months
         message = data.message
         self.somnia_tts_and_respond(
-            f"{username} subscribed to the channel for {streak} months, with the messaage: {message}",
-            f"{username} subscribed to the channel for {streak} months, with the messaage: {message}. please thank them.",
+            f"{username} subscribed to the channel for {cumulative_months} months, with the messaage: {message}",
+            f"{username} subscribed to the channel for {cumulative_months} months, with the messaage: {message}. please thank them.",
         )
 
     async def event_eventsub_notification_channel_update(
@@ -286,7 +308,7 @@ class TwitchBot(commands.Bot):
 
         raider = data.raider
         if streampet_socket:
-            streampet_socket.send(add_speed(300 * raiders_count))
+            streampet_socket.send(add_speed(100 * raiders_count))
             streampet_socket.recv()
         print(f"Raid from: {raider.name} ({raider.id})")
         print(f"Viewers count: {raiders_count}")
@@ -294,6 +316,20 @@ class TwitchBot(commands.Bot):
             f"{raider.name} just raided the channel with {raiders_count} viewers.",
             f"{raider.name} just raided the channel with {raiders_count} viewers., please thank them.",
         )
+
+    async def event_eventsub_notification_channel_shoutout_create(
+        self, payload
+    ) -> None:
+        data: eventsub.ChannelShoutoutCreateData = payload.data
+        to_broadcaster = data.to_broadcaster
+        print(f"Giving a shoutout to {to_broadcaster.name}")
+        print(f"Viewers count: {data.viewer_count}")
+        if somnia_socket:
+            somnia_socket.send(
+                to_msg(
+                    f"Give a twitch shoutout to {to_broadcaster.name}, tell the current channel chatters to visit and follow them."
+                )
+            )
 
     async def event_eventsub_notification_channel_shoutout_receive(
         self, payload
